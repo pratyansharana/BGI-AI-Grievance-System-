@@ -10,9 +10,10 @@ import {
     Platform,
     TouchableWithoutFeedback,
     Keyboard,
-    SafeAreaView
+    SafeAreaView,
+    Alert
 } from 'react-native';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
 import { auth } from '../config/firebaseconfig';
 
 export default function SignupScreen({ navigation }) {
@@ -23,7 +24,7 @@ export default function SignupScreen({ navigation }) {
 
     const handleSignup = async () => {
         if (!email || !password) {
-            alert('Please enter both email and password');
+            Alert.alert('Error', 'Please enter both email and password');
             return;
         }
 
@@ -31,13 +32,31 @@ export default function SignupScreen({ navigation }) {
         setLoading(true);
 
         try {
+            // 1. Create User in Firebase Authentication
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            console.log('User created:', userCredential.user.email);
-            // Replace ensures they go to Home and can't swipe back to Signup
-            navigation.replace('Home');
+            const user = userCredential.user;
+
+            // 2. Send Email Verification
+            await sendEmailVerification(user);
+            Alert.alert(
+                'Verification Sent',
+                'A verification link has been sent to your email address. Please verify before logging in.'
+            );
+
+            // 3. Sign the user out so they don't access unverified screens
+            await signOut(auth);
+
+            // Navigate back to Login screen
+            navigation.replace('Login');
         } catch (error) {
             console.error('Signup error:', error);
-            alert('Signup failed. Please check your credentials and try again.');
+            let errorMessage = 'Signup failed. Please check your credentials and try again.';
+            if (error.code === 'auth/email-already-in-use') {
+                errorMessage = 'The email address is already in use.';
+            } else if (error.code === 'auth/weak-password') {
+                errorMessage = 'The password is too weak.';
+            }
+            Alert.alert('Signup Error', errorMessage);
         } finally {
             setLoading(false);
         }
@@ -45,7 +64,7 @@ export default function SignupScreen({ navigation }) {
 
     return (
         <View style={styles.mainContainer}>
-            {/* Background Decorative Shapes (Exactly the same as Login) */}
+            {/* Background Decorative Shapes */}
             <View style={styles.topSemicircle} />
             <View style={styles.circleOne} />
             <View style={styles.circleTwo} />
@@ -125,36 +144,33 @@ export default function SignupScreen({ navigation }) {
 
                             <TouchableOpacity 
                                 style={styles.secondaryButton} 
-                                onPress={() => alert('Google Auth to be implemented!')}
+                                onPress={() => Alert.alert('Status', 'Google Auth to be implemented!')}
                                 disabled={loading}
                             >
                                 <Text style={styles.secondaryButtonText}>Sign Up with Google</Text>
                             </TouchableOpacity>
                         </View>
 
-                        {/* Footer - Navigates back to Login */}
+                        {/* Footer Section */}
                         <View style={styles.footerContainer}>
                             <Text style={styles.footerText}>Already have an account? </Text>
                             <TouchableOpacity onPress={() => navigation.goBack()}>
                                 <Text style={styles.footerLink}>Sign In</Text>
                             </TouchableOpacity>
                         </View>
-
                     </KeyboardAvoidingView>
                 </TouchableWithoutFeedback>
             </SafeAreaView>
         </View>
-    )
+    );
 }
 
 const styles = StyleSheet.create({
     mainContainer: {
         flex: 1,
         backgroundColor: '#F9FAFB',
-        overflow: 'hidden', 
-
+        overflow: 'hidden',
     },
-    // --- Decorative Background Shapes ---
     topSemicircle: {
         position: 'absolute',
         top: -300, 
@@ -185,7 +201,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#C7D2FE',
         opacity: 0.2,
     },
-    // ------------------------------------
     safeArea: {
         flex: 1,
     },

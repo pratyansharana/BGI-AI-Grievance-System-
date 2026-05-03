@@ -10,7 +10,8 @@ import {
     Platform,
     TouchableWithoutFeedback,
     Keyboard,
-    SafeAreaView
+    SafeAreaView,
+    Alert
 } from 'react-native';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../config/firebaseconfig';
@@ -23,7 +24,7 @@ export default function LoginScreen({ navigation }) {
 
     const handleLogin = async () => {
         if (!email || !password) {
-            alert('Please enter both email and password');
+            Alert.alert('Error', 'Please enter both email and password');
             return;
         }
         
@@ -33,10 +34,21 @@ export default function LoginScreen({ navigation }) {
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             console.log('User logged in:', userCredential.user.email);
-            navigation.replace('MainTabs'); 
+            
+            // Check if email is verified
+            if (userCredential.user.emailVerified) {
+                navigation.replace('MainTabs'); 
+            } else {
+                Alert.alert(
+                    'Verify Email',
+                    'Please verify your email address before logging in.'
+                );
+                // Optionally sign out if unverified
+                await auth.signOut();
+            }
         } catch (error) {
             console.error('Login error:', error);
-            alert('Login failed. Please check your credentials and try again.');
+            Alert.alert('Login failed', 'Please check your credentials and try again.');
         } finally {
             setLoading(false); 
         }
@@ -100,7 +112,7 @@ export default function LoginScreen({ navigation }) {
                                 </View>
                             </View>
 
-                            <TouchableOpacity style={styles.forgotPasswordButton}>
+                            <TouchableOpacity style={styles.forgotPasswordButton} onPress={() => Alert.alert('Status', 'Password Reset link sent!')}>
                                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
                             </TouchableOpacity>
                         </View>
@@ -128,7 +140,7 @@ export default function LoginScreen({ navigation }) {
 
                             <TouchableOpacity 
                                 style={styles.secondaryButton} 
-                                onPress={() => alert('Google Auth to be implemented!')}
+                                onPress={() => Alert.alert('Status', 'Google Auth to be implemented!')}
                                 disabled={loading}
                             >
                                 <Text style={styles.secondaryButtonText}>Continue with Google</Text>
@@ -154,9 +166,8 @@ const styles = StyleSheet.create({
     mainContainer: {
         flex: 1,
         backgroundColor: '#F9FAFB',
-        overflow: 'hidden', // Keeps the background shapes from breaking the layout
+        overflow: 'hidden',
     },
-    // --- Decorative Background Shapes ---
     topSemicircle: {
         position: 'absolute',
         top: -300, 
@@ -164,7 +175,7 @@ const styles = StyleSheet.create({
         right: -100,
         height: 600,
         borderRadius: 300, 
-        backgroundColor: '#4F46E5', // Primary Indigo Color
+        backgroundColor: '#4F46E5', 
         opacity: 0.1,
     },
     circleOne: {
@@ -187,7 +198,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#C7D2FE',
         opacity: 0.2,
     },
-    // ------------------------------------
     safeArea: {
         flex: 1,
     },
@@ -270,6 +280,7 @@ const styles = StyleSheet.create({
     },
     forgotPasswordButton: {
         alignSelf: 'flex-end',
+        marginTop: 8,
     },
     forgotPasswordText: {
         color: '#4F46E5',

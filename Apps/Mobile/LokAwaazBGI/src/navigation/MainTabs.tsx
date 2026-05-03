@@ -12,7 +12,7 @@ export default function MainTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         // Hide the top header for the tabs since your HomeScreen has its own header design
-        headerShown: false, 
+        headerShown: false,
         
         // Dynamic Icon Logic
         tabBarIcon: ({ focused, color, size }) => {
