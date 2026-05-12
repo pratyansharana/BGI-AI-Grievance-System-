@@ -2,8 +2,6 @@ import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { AppSidebar } from "@/components/AppSidebar";
-import { reports } from "@/lib/mockData";
-import type { ReportStatus } from "@/lib/mockData";
 import { StatusBadge } from "@/components/StatusBadge";
 import { MapView } from "@/components/MapView";
 import { useMemo } from "react";
@@ -24,6 +22,12 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useReports } from "@/hooks/useReports";
+type ReportStatus =
+  | "pending"
+  | "assigned"
+  | "resolved"
+  | "rejected";
 
 export const Route = createFileRoute("/")({
   component: DashboardRoute,
@@ -52,12 +56,20 @@ function DashboardRoute() {
 
 function DashboardPage() {
   const { t } = useI18n();
+  const { reports, loading } = useReports();
 
   const counts = useMemo(() => {
     const c = { pending: 0, assigned: 0, resolved: 0, rejected: 0 };
-    reports.forEach((r) => (c[r.status] += 1));
+    reports.forEach((r) => {
+      const status = r.status?.toLowerCase();
+
+       if (status === "active" || status === "pending") c.pending += 1;
+      else if (status === "assigned") c.assigned += 1;
+      else if (status === "resolved") c.resolved += 1;
+      else if (status === "rejected") c.rejected += 1;
+    });
     return { ...c, total: reports.length };
-  }, []);
+  }, [reports]);
 
   const pieData = (["pending", "assigned", "resolved", "rejected"] as ReportStatus[]).map(
     (s) => ({ name: t(s), value: counts[s], status: s }),
@@ -74,7 +86,9 @@ function DashboardPage() {
     { key: "resolved" as const, val: counts.resolved, icon: CheckCircle2, tone: "var(--color-status-resolved)" },
     { key: "rejected" as const, val: counts.rejected, icon: XCircle, tone: "var(--color-status-rejected)" },
   ];
-
+  if (loading) {
+    return <div className="p-8 text-muted-foreground">Loading dashboard...</div>;
+  }
   return (
     <div className="p-6 lg:p-8 space-y-6 max-w-[1500px] mx-auto">
       <header>
@@ -167,14 +181,24 @@ function DashboardPage() {
                   key={r.id}
                   className={cn("border-t hover:bg-secondary/30 transition", i % 2 && "bg-secondary/10")}
                 >
-                  <td className="px-5 py-3 font-medium">{r.userId}</td>
+                  <td className="px-5 py-3 font-medium">{r.citizenName || r.userId}</td>
                   <td className="px-5 py-3">
-                    <img src={r.image} alt="" className="size-12 rounded-lg object-cover" />
+                    <img
+                      src={r.imageUrl}
+                      alt=""
+                      className="size-12 rounded-lg object-cover"
+                    />
                   </td>
                   <td className="px-5 py-3 font-mono text-xs">{r.lat}, {r.lng}</td>
-                  <td className="px-5 py-3"><StatusBadge status={r.status} /></td>
+                  <td className="px-5 py-3"><StatusBadge
+                                              status={
+                                                r.status?.toLowerCase() === "active"
+                                                   ? "pending"
+                                                  : (r.status?.toLowerCase() as ReportStatus)
+                                              }
+                                            /></td>
                   <td className="px-5 py-3 text-muted-foreground">
-                    {new Date(r.createdAt).toLocaleString()}
+                    {r.createdAt?.toDate?.().toLocaleString()}
                   </td>
                 </tr>
               ))}

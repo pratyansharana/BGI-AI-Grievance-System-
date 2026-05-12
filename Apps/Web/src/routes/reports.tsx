@@ -2,12 +2,16 @@ import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useI18n } from "@/lib/i18n";
-import { reports as initialReports } from "@/lib/mockData";
-import type { Report, ReportStatus } from "@/lib/mockData";
+import { useReports } from "@/hooks/useReports";
+type ReportStatus =
+  | "pending"
+  | "assigned"
+  | "resolved"
+  | "rejected";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ReportDetailDialog } from "@/components/ReportDetailDialog";
 import { MapView } from "@/components/MapView";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -41,10 +45,27 @@ const FILTERS: ("all" | ReportStatus)[] = ["all", "pending", "assigned", "resolv
 
 function ReportsPage() {
   const { t } = useI18n();
-  const [list, setList] = useState<Report[]>(initialReports);
+  const { reports: firestoreReports } = useReports();
+  const [list, setList] = useState<any[]>([]);
   const [filter, setFilter] = useState<"all" | ReportStatus>("all");
   const [search, setSearch] = useState("");
   const [active, setActive] = useState<Report | null>(null);
+  useEffect(() => {
+    const mapped = firestoreReports.map((r) => ({
+      ...r,
+      image: r.imageUrl,
+      originalStatus: r.status,
+      status:
+        r.status?.toLowerCase() === "active"
+          ? "pending"
+          : r.status?.toLowerCase(),
+      createdAt: r.createdAt?.toDate?.() || new Date(),
+      lat: r.lat || 0,
+      lng: r.lng || 0,
+    }));
+
+    setList(mapped);
+  }, [firestoreReports]);
 
   const filtered = useMemo(() => {
     return list.filter((r) => {
