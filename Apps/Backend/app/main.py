@@ -8,8 +8,11 @@ app = FastAPI(title="LokAwaz AI Engine")
 
 print("Initializing NLP Engine...")
 # Model is loaded once at startup to ensure fast request handling
-classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
-
+# Replace the old classifier line with this one:
+classifier = pipeline(
+    "zero-shot-classification", 
+    model="valhalla/distilbart-mnli-12-3" # Much smaller/faster model
+)
 # Labels used for semantic comparison
 DEPARTMENTS = {
     "Sanitation": "garbage, trash, waste not collected, open drain, sewage overflow, dirty streets, littering",
