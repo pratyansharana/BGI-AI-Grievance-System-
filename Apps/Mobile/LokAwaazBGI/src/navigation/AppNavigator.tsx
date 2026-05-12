@@ -6,6 +6,8 @@ import SignupScreen from '../screens/SignupScreen';
 import { BottomTabs } from 'react-native-screens';
 import MainTabs from './MainTabs';
 
+import TrackReportScreen from '../screens/TrackReportScreen';
+
 const stack = createNativeStackNavigator();
 
 export default function AppNavigator(){
@@ -20,6 +22,11 @@ export default function AppNavigator(){
                 component={MainTabs} 
                 // Disable header and gestures so they can't swipe back to Login
                 options={{ headerShown: false, gestureEnabled: false }} 
+            />
+            <stack.Screen 
+                name="TrackReport" 
+                component={TrackReportScreen} 
+                options={{ headerShown: true, title: 'Track Report' }}
             />
         </stack.Navigator>
         
