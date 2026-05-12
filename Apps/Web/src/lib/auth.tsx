@@ -1,37 +1,61 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  onAuthStateChanged,
+  signInWithPopup,
+  signOut,
+  type User,
+} from "firebase/auth";
+import { auth, googleProvider } from "@/firebase";
 
 interface AuthCtx {
   isAuthed: boolean;
   email: string | null;
-  login: (email: string) => void;
-  logout: () => void;
+  user: User | null;
+  loginWithGoogle: () => Promise<void>;
+  logout: () => Promise<void>;
   ready: boolean;
 }
 
 const Ctx = createContext<AuthCtx | null>(null);
-const KEY = "lokawaaz-auth";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [email, setEmail] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const v = typeof window !== "undefined" ? localStorage.getItem(KEY) : null;
-    if (v) setEmail(v);
-    setReady(true);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setReady(true);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const login = (e: string) => {
-    setEmail(e);
-    localStorage.setItem(KEY, e);
+  const loginWithGoogle = async () => {
+    await signInWithPopup(auth, googleProvider);
   };
-  const logout = () => {
-    setEmail(null);
-    localStorage.removeItem(KEY);
+
+  const logout = async () => {
+    await signOut(auth);
   };
 
   return (
-    <Ctx.Provider value={{ isAuthed: !!email, email, login, logout, ready }}>
+    <Ctx.Provider
+      value={{
+        isAuthed: !!user,
+        email: user?.email ?? null,
+        user,
+        loginWithGoogle,
+        logout,
+        ready,
+      }}
+    >
       {children}
     </Ctx.Provider>
   );

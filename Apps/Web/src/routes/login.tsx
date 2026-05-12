@@ -1,11 +1,17 @@
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
-import { ShieldCheck, Languages, Loader2 } from "lucide-react";
+import {
+  ShieldCheck,
+  Languages,
+  Loader2,
+  FileText,
+  CheckCircle2,
+  Users,
+  LockKeyhole,
+} from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({
@@ -13,166 +19,195 @@ export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
       { title: "Sign in — LokAwaaz Municipality Portal" },
-      { name: "description", content: "Secure sign-in for municipal administrators." },
+      {
+        name: "description",
+        content: "Secure sign-in for municipal administrators.",
+      },
     ],
   }),
 });
 
 function LoginPage() {
-  const { isAuthed, login, ready } = useAuth();
+  const { isAuthed, loginWithGoogle, ready } = useAuth();
   const { t, lang, setLang } = useI18n();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("admin@lokawaaz.gov");
-  const [password, setPassword] = useState("demo1234");
   const [loading, setLoading] = useState(false);
 
   if (ready && isAuthed) return <Navigate to="/" />;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      toast.error(t("loginFailed"));
-      return;
-    }
-    setLoading(true);
-    setTimeout(() => {
-      login(email);
+
+    try {
+      setLoading(true);
+      await loginWithGoogle();
       toast.success(t("welcomeBack"));
       navigate({ to: "/" });
-    }, 600);
+    } catch (error) {
+      console.error(error);
+      toast.error(t("loginFailed"));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-background">
-      {/* Brand panel */}
-      <div className="hidden lg:flex flex-col justify-between p-12 text-white relative overflow-hidden bg-[var(--gradient-brand)]">
-        <div className="absolute -top-32 -right-20 size-[420px] rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute -bottom-40 -left-20 size-[480px] rounded-full bg-[color:var(--color-status-pending)]/30 blur-3xl" />
+    <div className="min-h-screen overflow-hidden bg-white relative">
+      {/* Tricolor blended background */}
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,153,51,0.42)_0%,rgba(255,255,255,0.96)_42%,rgba(255,255,255,0.98)_55%,rgba(19,136,8,0.35)_100%)]" />
 
-        <div className="relative flex items-center gap-3">
-          <div className="size-11 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center ring-1 ring-white/30">
-            <ShieldCheck className="size-6" />
+      <div className="absolute -top-32 -right-20 h-80 w-[620px] rounded-full bg-orange-300/35 blur-3xl" />
+      <div className="absolute -bottom-40 -left-32 h-96 w-[680px] rounded-full bg-green-500/25 blur-3xl" />
+      <div className="absolute top-28 right-24 h-72 w-72 rounded-full border-[24px] border-blue-900/5" />
+
+      {/* Ashoka chakra watermark */}
+      <div className="absolute right-24 top-40 hidden xl:flex size-72 items-center justify-center rounded-full border-[18px] border-blue-900/5">
+        {Array.from({ length: 24 }).map((_, i) => (
+          <span
+            key={i}
+            className="absolute h-[130px] w-[2px] bg-blue-900/5 origin-bottom"
+            style={{ transform: `rotate(${i * 15}deg) translateY(-65px)` }}
+          />
+        ))}
+      </div>
+
+      <main className="relative z-10 min-h-screen px-8 py-8 lg:px-16">
+        {/* Top brand + language */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="size-16 rounded-2xl bg-white/80 shadow-lg ring-1 ring-slate-200 flex items-center justify-center">
+              <ShieldCheck className="size-9 text-green-700" />
+            </div>
+
+            <div>
+              <h1 className="text-3xl font-extrabold tracking-tight text-slate-950">
+                LokAwaaz
+              </h1>
+              <p className="text-base font-medium text-slate-600">
+                Municipality Portal
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="font-bold text-lg">{t("appName")}</p>
-            <p className="text-xs text-white/70">{t("portal")}</p>
-          </div>
-        </div>
 
-        <div className="relative max-w-md">
-          <h1
-            className="text-4xl font-bold leading-tight text-white animate-fade-in"
-            style={{ textShadow: "0 2px 12px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.5)" }}
-          >
-            {t("welcomeBack")}
-          </h1>
-          <p
-            className="mt-3 text-white animate-fade-in"
-            style={{ textShadow: "0 1px 8px rgba(0,0,0,0.45)" }}
-          >
-            {t("loginSubtitle")}
-          </p>
-
-          <div className="mt-10 grid grid-cols-3 gap-3 text-center">
-            {[
-              { n: "12.4k", l: t("totalReports") },
-              { n: "98%", l: t("resolved") },
-              { n: "240+", l: t("workers") },
-            ].map((s) => (
-              <div
-                key={s.l}
-                className="rounded-xl bg-[color:var(--brand-deep)]/50 p-4 ring-1 ring-white/30 hover-scale transition"
+          <div className="inline-flex items-center gap-1 rounded-full bg-white/80 p-1 shadow-sm ring-1 ring-slate-200">
+            <Languages className="size-4 ml-2 text-slate-500" />
+            {(["en", "hi"] as const).map((l) => (
+              <button
+                key={l}
+                onClick={() => setLang(l)}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-full transition ${
+                  lang === l
+                    ? "bg-green-700 text-white"
+                    : "text-slate-500 hover:text-slate-900"
+                }`}
               >
-                <p
-                  className="text-2xl font-bold text-white"
-                  style={{ textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}
-                >
-                  {s.n}
-                </p>
-                <p
-                  className="text-[11px] text-white mt-1"
-                  style={{ textShadow: "0 1px 4px rgba(0,0,0,0.45)" }}
-                >
-                  {s.l}
-                </p>
-              </div>
+                {l === "en" ? "EN" : "हिं"}
+              </button>
             ))}
           </div>
         </div>
 
-        <p
-          className="relative text-xs text-white/85"
-          style={{ textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}
-        >
-          {t("tagline")}
-        </p>
-      </div>
+        {/* Laptop layout */}
+        <section className="grid min-h-[calc(100vh-120px)] grid-cols-1 items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
+          {/* Left content */}
+          <div className="max-w-3xl">
+            <p className="mb-4 text-sm font-extrabold uppercase tracking-[0.32em] text-green-800">
+              Admin Dashboard
+            </p>
 
-      {/* Form panel */}
-      <div className="flex flex-col justify-center px-6 py-12 sm:px-12">
-        <div className="mx-auto w-full max-w-sm">
-          <div className="flex justify-between items-center mb-8 lg:hidden">
-            <div className="flex items-center gap-2">
-              <div className="size-9 rounded-lg bg-[var(--gradient-brand)] flex items-center justify-center">
-                <ShieldCheck className="size-5 text-white" />
+            <h2 className="text-6xl font-black tracking-tight text-slate-950 drop-shadow-sm xl:text-7xl">
+              Welcome back
+            </h2>
+
+            <p className="mt-5 max-w-2xl text-xl font-medium text-slate-600">
+              Sign in to manage civic reports across your municipality
+            </p>
+
+            <div className="mt-12 grid grid-cols-3 gap-5">
+              <StatCard
+                icon={<FileText className="size-7 text-blue-700" />}
+                value="12.4k"
+                label={t("totalReports")}
+              />
+              <StatCard
+                icon={<CheckCircle2 className="size-7 text-green-700" />}
+                value="98%"
+                label={t("resolved")}
+              />
+              <StatCard
+                icon={<Users className="size-7 text-purple-700" />}
+                value="240+"
+                label={t("workers")}
+              />
+            </div>
+          </div>
+
+          {/* Right login card */}
+          <div className="flex justify-center lg:justify-end">
+            <form
+              onSubmit={submit}
+              className="w-full max-w-md rounded-[2rem] bg-white/85 p-8 shadow-2xl ring-1 ring-slate-200 backdrop-blur-xl"
+            >
+              <div className="flex items-center gap-4">
+                <div className="size-14 rounded-2xl bg-slate-100 flex items-center justify-center">
+                  <LockKeyhole className="size-7 text-slate-700" />
+                </div>
+
+                <div>
+                  <h3 className="text-2xl font-extrabold text-slate-950">
+                    Admin Sign In
+                  </h3>
+                  <p className="text-sm font-medium text-slate-500">
+                    Secure access to your dashboard
+                  </p>
+                </div>
               </div>
-              <span className="font-bold">{t("appName")}</span>
-            </div>
+
+              <div className="my-7 h-px bg-slate-200" />
+
+              <Button
+                type="submit"
+                disabled={loading}
+                className="h-12 w-full bg-white text-base font-bold text-slate-800 shadow-sm ring-1 ring-slate-300 hover:bg-slate-50"
+              >
+                {loading ? (
+                  <Loader2 className="size-5 animate-spin" />
+                ) : (
+                  <span className="mr-2 text-xl font-black text-blue-600">G</span>
+                )}
+
+                {loading ? t("signingIn") : "Sign in with Google"}
+              </Button>
+
+              <p className="mt-6 flex items-center justify-center gap-2 text-xs font-medium text-slate-500">
+                <ShieldCheck className="size-4" />
+                Secure • Private • Only authorized personnel
+              </p>
+            </form>
           </div>
+        </section>
+      </main>
+    </div>
+  );
+}
 
-          <div className="flex justify-end mb-6">
-            <div className="inline-flex items-center gap-1 rounded-full bg-secondary p-1">
-              <Languages className="size-3.5 ml-1.5 text-muted-foreground" />
-              {(["en", "hi"] as const).map((l) => (
-                <button
-                  key={l}
-                  onClick={() => setLang(l)}
-                  className={`text-xs font-medium px-2.5 py-1 rounded-full transition ${
-                    lang === l ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-                  }`}
-                >
-                  {l === "en" ? "EN" : "हिं"}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <h2 className="text-2xl font-bold">{t("login")}</h2>
-          <p className="text-sm text-muted-foreground mt-1">{t("loginSubtitle")}</p>
-
-          <form onSubmit={submit} className="mt-8 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">{t("email")}</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@lokawaaz.gov"
-                className="h-11"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">{t("password")}</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="h-11"
-              />
-            </div>
-            <Button type="submit" disabled={loading} className="w-full h-11 text-base font-semibold">
-              {loading ? <Loader2 className="size-4 animate-spin" /> : null}
-              {loading ? t("signingIn") : t("signIn")}
-            </Button>
-          </form>
-
-          <p className="mt-6 text-xs text-muted-foreground text-center">
-            Demo credentials are pre-filled. Click sign in to continue.
-          </p>
-        </div>
+function StatCard({
+  icon,
+  value,
+  label,
+}: {
+  icon: React.ReactNode;
+  value: string;
+  label: string;
+}) {
+  return (
+    <div className="rounded-3xl bg-white/80 p-5 shadow-lg ring-1 ring-slate-200 backdrop-blur-md transition hover:-translate-y-1 hover:shadow-xl">
+      <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-slate-100">
+        {icon}
       </div>
+
+      <p className="text-3xl font-black text-slate-950">{value}</p>
+      <p className="mt-1 text-sm font-semibold text-slate-600">{label}</p>
     </div>
   );
 }
