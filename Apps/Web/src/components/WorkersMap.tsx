@@ -1,32 +1,46 @@
 import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { UserRound } from "lucide-react";
 
-type Worker = {
+type FieldStaff = {
   id: string;
   name: string;
   email: string;
-  phone: string;
   department: string;
-  role: string;
-  status: string;
-  totalReports: number;
-  liveLocation?: {
-    latitude: number | null;
-    longitude: number | null;
-  };
+  designation: string;
+  duty_status: boolean;
+  assignedTask?: string;
+  resolvedCount?: number;
+  location?: {
+    latitude: number;
+    longitude: number;
+};
 };
 
 type WorkersMapProps = {
-  workers: Worker[];
+  workers: FieldStaff[];
 };
 
-const getStatusColor = (status: string) => {
-  if (status === "available") return "#22c55e";
-  if (status === "assigned") return "#3b82f6";
-  if (status === "off duty") return "#ef4444";
-  return "#6b7280";
+const getStatusColor = (dutyStatus: boolean) => {
+  return dutyStatus ? "#22c55e" : "#ef4444";
+};
+
+const getStatusText = (dutyStatus: boolean) => {
+  return dutyStatus ? "Available" : "Off Duty";
+};
+
+const parseCoordinate = (coordinate: string | undefined) => {
+  if (!coordinate) return null;
+
+  const numericValue = parseFloat(coordinate);
+
+  if (Number.isNaN(numericValue)) return null;
+
+  if (coordinate.includes("S") || coordinate.includes("W")) {
+    return -numericValue;
+  }
+
+  return numericValue;
 };
 
 export function WorkersMap({ workers }: WorkersMapProps) {
@@ -59,20 +73,32 @@ export function WorkersMap({ workers }: WorkersMapProps) {
     markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = [];
 
-    const workersWithLocation = workers.filter(
-      (worker) =>
-        worker.liveLocation?.latitude &&
-        worker.liveLocation?.longitude
-    );
+    const fieldStaffWithLocation = workers
+      .map((worker) => {
+        const latitude = worker.location?.latitude ?? null;
+        const longitude = worker.location?.longitude ?? null;
 
-    workersWithLocation.forEach((worker) => {
-      const color = getStatusColor(worker.status);
+        return {
+          ...worker,
+          latitude,
+          longitude,
+        };
+      })
+      .filter(
+        (worker) =>
+          worker.latitude !== null &&
+          worker.longitude !== null
+      );
+
+    fieldStaffWithLocation.forEach((worker) => {
+      const color = getStatusColor(worker.duty_status);
+      const statusText = getStatusText(worker.duty_status);
 
       const markerElement = document.createElement("div");
       markerElement.innerHTML = `
         <div style="
-          width: 20px;
-          height: 20px;
+          width: 22px;
+          height: 22px;
           border-radius: 9999px;
           background: ${color};
           border: 3px solid white;
@@ -95,7 +121,7 @@ export function WorkersMap({ workers }: WorkersMapProps) {
         closeButton: true,
         closeOnClick: true,
       }).setHTML(`
-        <div style="width: 230px; padding: 12px;">
+        <div style="width: 240px; padding: 12px;">
           <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
             <div style="
               width: 42px;
@@ -109,28 +135,47 @@ export function WorkersMap({ workers }: WorkersMapProps) {
               font-weight: 700;
               font-size: 18px;
             ">
-              ${worker.name?.charAt(0)?.toUpperCase() || "W"}
+              ${worker.name?.charAt(0)?.toUpperCase() || "F"}
             </div>
 
             <div>
               <p style="font-size: 11px; text-transform: uppercase; color: #64748b; margin: 0;">
-                ${worker.department}
+                ${worker.department || "Department"}
               </p>
               <h3 style="font-size: 15px; font-weight: 700; margin: 2px 0 0;">
-                ${worker.name}
+                ${worker.name || "Field Staff"}
               </h3>
             </div>
           </div>
 
           <div style="font-size: 13px; color: #475569; line-height: 1.6;">
-            <p style="margin: 0;"><strong>Role:</strong> ${worker.role}</p>
+            <p style="margin: 0;"><strong>Designation:</strong> ${
+              worker.designation || "Field Worker"
+            }</p>
+
             <p style="margin: 0;"><strong>Status:</strong> 
-              <span style="color:${color}; font-weight:700; text-transform:capitalize;">
-                ${worker.status}
+              <span style="color:${color}; font-weight:700;">
+                ${statusText}
               </span>
             </p>
-            <p style="margin: 0;"><strong>Phone:</strong> ${worker.phone}</p>
-            <p style="margin: 0;"><strong>Total Reports:</strong> ${worker.totalReports}</p>
+
+            <p style="margin: 0;"><strong>Email:</strong> ${
+              worker.email || "Not available"
+            }</p>
+
+            <p style="margin: 0;"><strong>Assigned Task:</strong> ${
+              worker.assignedTask || "No task assigned"
+            }</p>
+
+            <p style="margin: 0;"><strong>Resolved Count:</strong> ${
+              worker.resolvedCount ?? 0
+            }</p>
+
+            <p style="margin: 0;"><strong>Location:</strong> ${
+              worker.location?.latitude && worker.location?.longitude
+              ? `${worker.location.latitude}, ${worker.location.longitude}`
+              : "Not available"
+            }</p>
           </div>
         </div>
       `);
@@ -138,10 +183,7 @@ export function WorkersMap({ workers }: WorkersMapProps) {
       const marker = new maplibregl.Marker({
         element: markerElement,
       })
-        .setLngLat([
-          worker.liveLocation!.longitude!,
-          worker.liveLocation!.latitude!,
-        ])
+        .setLngLat([worker.longitude!, worker.latitude!])
         .setPopup(popup)
         .addTo(mapRef.current!);
 
@@ -150,11 +192,11 @@ export function WorkersMap({ workers }: WorkersMapProps) {
   }, [workers]);
 
   return (
-    <div className="rounded-2xl border bg-card shadow-(--shadow-soft) overflow-hidden">
-      <div className="px-5 py-4 border-b">
-        <h3 className="font-semibold">Workers Live Map</h3>
+    <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+      <div className="border-b px-5 py-4">
+        <h3 className="font-semibold">Field Staff Live Map</h3>
         <p className="text-sm text-muted-foreground">
-          Field staff locations based on live coordinates
+          Field staff locations based on live Firebase coordinates
         </p>
       </div>
 

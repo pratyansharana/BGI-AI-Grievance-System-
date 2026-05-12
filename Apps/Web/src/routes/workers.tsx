@@ -13,7 +13,6 @@ import { db } from "@/firebase";
 import { useAuth } from "@/lib/auth";
 import { AppSidebar } from "@/components/AppSidebar";
 import { WorkersMap } from "@/components/WorkersMap";
-import { useI18n } from "@/lib/i18n";
 import {
   Phone,
   Briefcase,
@@ -35,19 +34,21 @@ export const Route = createFileRoute("/workers")({
 
 type Worker = {
   id: string;
+  fsid?: string;
   name: string;
   email: string;
-  phone: string;
-  department: string;
+  phone?: string;
   password?: string;
-  role: string;
-  status: "available" | "assigned" | "off duty";
-  totalReports: number;
-  imageUrl?: string;
-  liveLocation?: {
-    latitude: number | null;
-    longitude: number | null;
-  };
+  department: string;
+  designation: string;
+  duty_status: boolean;
+  assignedTask?: string;
+  resolvedCount?: number;
+  location?: {
+  latitude: number;
+  longitude: number;
+};
+  lastUpdated?: number;
 };
 
 type FormData = {
@@ -64,12 +65,6 @@ const emptyForm: FormData = {
   phone: "+91 ",
   department: "",
   password: "",
-};
-
-const statusStyles: Record<string, string> = {
-  available: "bg-green-100 text-green-700 ring-green-200",
-  assigned: "bg-blue-100 text-blue-700 ring-blue-200",
-  "off duty": "bg-red-100 text-red-700 ring-red-200",
 };
 
 function WorkersPage() {
@@ -92,7 +87,8 @@ function WorkersPage() {
   const fetchWorkers = async () => {
     try {
       setLoading(true);
-      const querySnapshot = await getDocs(collection(db, "workers"));
+
+      const querySnapshot = await getDocs(collection(db, "field_staff"));
 
       const workersData = querySnapshot.docs.map((docSnap) => ({
         id: docSnap.id,
@@ -101,7 +97,7 @@ function WorkersPage() {
 
       setWorkers(workersData);
     } catch (error) {
-      console.error("Error fetching workers:", error);
+      console.error("Error fetching field staff:", error);
     } finally {
       setLoading(false);
     }
@@ -126,6 +122,40 @@ function WorkersPage() {
     });
   };
 
+  const getStatusText = (worker: Worker) => {
+    if (worker.assignedTask && worker.assignedTask.trim() !== "") {
+      return "assigned";
+    }
+
+    if (worker.duty_status) {
+      return "available";
+    }
+
+    return "off duty";
+  };
+
+  const getStatusStyle = (worker: Worker) => {
+    const status = getStatusText(worker);
+
+    if (status === "available") {
+      return "bg-green-100 text-green-700 ring-green-200";
+    }
+
+    if (status === "assigned") {
+      return "bg-blue-100 text-blue-700 ring-blue-200";
+    }
+
+    return "bg-red-100 text-red-700 ring-red-200";
+  };
+
+  const getDotColor = (worker: Worker) => {
+    const status = getStatusText(worker);
+
+    if (status === "available") return "bg-green-500";
+    if (status === "assigned") return "bg-blue-500";
+    return "bg-red-500";
+  };
+
   const handleOpenAddForm = () => {
     setEditingWorker(null);
     setFormData(emptyForm);
@@ -137,7 +167,9 @@ function WorkersPage() {
     setFormData({
       name: worker.name || "",
       email: worker.email || "",
-      phone: worker.phone?.startsWith("+91") ? worker.phone : `+91 ${worker.phone || ""}`,
+      phone: worker.phone?.startsWith("+91")
+        ? worker.phone
+        : `+91 ${worker.phone || ""}`,
       department: worker.department || "",
       password: worker.password || "",
     });
@@ -155,67 +187,84 @@ function WorkersPage() {
 
     try {
       if (editingWorker) {
-        await updateDoc(doc(db, "workers", editingWorker.id), {
+        await updateDoc(doc(db, "field_staff", editingWorker.id), {
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
           department: formData.department,
           password: formData.password,
+          lastUpdated: Date.now(),
           updatedAt: serverTimestamp(),
         });
       } else {
-        await addDoc(collection(db, "workers"), {
+        const docRef = await addDoc(collection(db, "field_staff"), {
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
-          department: formData.department,
           password: formData.password,
 
-          role: "Field Staff",
-          status: "available",
-          totalReports: 0,
-          imageUrl: "",
+          department: formData.department,
+          designation: "Field Worker",
+          duty_status: true,
+          assignedTask: "",
+          resolvedCount: 0,
+          location: [],
+          lastUpdated: Date.now(),
 
-          liveLocation: {
-            latitude: null,
-            longitude: null,
-          },
-
-          locationUpdatedAt: null,
           createdAt: serverTimestamp(),
+        });
+
+        await updateDoc(doc(db, "field_staff", docRef.id), {
+          fsid: docRef.id,
         });
       }
 
       await fetchWorkers();
       handleCloseForm();
     } catch (error) {
-      console.error("Error saving worker:", error);
+      console.error("Error saving field staff:", error);
     }
   };
 
   const handleDelete = async (workerId: string) => {
     const confirmDelete = window.confirm(
-      "Are you sure you want to delete this worker?"
+      "Are you sure you want to delete this field staff member?"
     );
 
     if (!confirmDelete) return;
 
     try {
-      await deleteDoc(doc(db, "workers", workerId));
+      await deleteDoc(doc(db, "field_staff", workerId));
       await fetchWorkers();
     } catch (error) {
-      console.error("Error deleting worker:", error);
+      console.error("Error deleting field staff:", error);
     }
   };
 
-  const availableCount = workers.filter((w) => w.status === "available").length;
-  const assignedCount = workers.filter((w) => w.status === "assigned").length;
-  const offDutyCount = workers.filter((w) => w.status === "off duty").length;
+  const availableCount = workers.filter(
+    (w) => w.duty_status === true && (!w.assignedTask || w.assignedTask.trim() === "")
+  ).length;
+
+  const assignedCount = workers.filter(
+    (w) => w.assignedTask && w.assignedTask.trim() !== ""
+  ).length;
+
+  const offDutyCount = workers.filter((w) => w.duty_status === false).length;
 
   const filteredWorkers =
     statusFilter === "all"
       ? workers
-      : workers.filter((w) => w.status === statusFilter);
+      : statusFilter === "available"
+        ? workers.filter(
+            (w) =>
+              w.duty_status === true &&
+              (!w.assignedTask || w.assignedTask.trim() === "")
+          )
+        : statusFilter === "assigned"
+          ? workers.filter(
+              (w) => w.assignedTask && w.assignedTask.trim() !== ""
+            )
+          : workers.filter((w) => w.duty_status === false);
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -224,9 +273,9 @@ function WorkersPage() {
       <main className="flex-1 p-6 lg:p-8">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Workers</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Field Staff</h1>
             <p className="mt-1 text-muted-foreground">
-              Manage field staff, status, and live worker locations.
+              Manage field staff members, status, and live locations.
             </p>
           </div>
 
@@ -235,13 +284,13 @@ function WorkersPage() {
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90"
           >
             <Plus className="h-4 w-4" />
-            Add Worker
+            Add Field Staff
           </button>
         </div>
 
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-2xl border bg-card p-5 shadow-sm">
-            <p className="text-sm text-muted-foreground">Total Workers</p>
+            <p className="text-sm text-muted-foreground">Total Field Staff</p>
             <p className="mt-2 text-3xl font-bold">{workers.length}</p>
           </div>
 
@@ -269,9 +318,9 @@ function WorkersPage() {
 
         <div className="mb-6 flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-semibold">Worker Status Filter</h2>
+            <h2 className="font-semibold">Field Staff Status Filter</h2>
             <p className="text-sm text-muted-foreground">
-              Filter worker cards and map markers by status.
+              Filter field staff cards and map markers by status.
             </p>
           </div>
 
@@ -284,7 +333,7 @@ function WorkersPage() {
             }
             className="rounded-xl border bg-background px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
           >
-            <option value="all">All Workers ({workers.length})</option>
+            <option value="all">All Field Staff ({workers.length})</option>
             <option value="available">Available ({availableCount})</option>
             <option value="assigned">Assigned ({assignedCount})</option>
             <option value="off duty">Off Duty ({offDutyCount})</option>
@@ -297,111 +346,102 @@ function WorkersPage() {
 
         {loading ? (
           <div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">
-            Loading workers...
+            Loading field staff...
           </div>
         ) : filteredWorkers.length === 0 ? (
           <div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">
-            No workers found for this status.
+            No field staff found for this status.
           </div>
         ) : (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {filteredWorkers.map((worker) => (
-              <div
-                key={worker.id}
-                className="rounded-2xl border bg-card p-5 shadow-sm transition hover:shadow-md"
-              >
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                      {worker.imageUrl ? (
-                        <img
-                          src={worker.imageUrl}
-                          alt={worker.name}
-                          className="h-12 w-12 rounded-full object-cover"
-                        />
-                      ) : (
+            {filteredWorkers.map((worker) => {
+              const statusText = getStatusText(worker);
+
+              return (
+                <div
+                  key={worker.id}
+                  className="rounded-2xl border bg-card p-5 shadow-sm transition hover:shadow-md"
+                >
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
                         <UserRound className="h-6 w-6 text-muted-foreground" />
-                      )}
+                      </div>
+
+                      <div>
+                        <h3 className="font-semibold">
+                          {worker.name || "Field Staff"}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          {worker.designation || "Field Worker"}
+                        </p>
+                      </div>
                     </div>
 
-                    <div>
-                      <h3 className="font-semibold">{worker.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {worker.role || "Field Staff"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium capitalize ring-1",
-                      statusStyles[worker.status] ||
-                        "bg-gray-100 text-gray-700 ring-gray-200"
-                    )}
-                  >
                     <span
                       className={cn(
-                        "h-2 w-2 rounded-full",
-                        worker.status === "available" && "bg-green-500",
-                        worker.status === "assigned" && "bg-blue-500",
-                        worker.status === "off duty" && "bg-red-500"
+                        "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium capitalize ring-1",
+                        getStatusStyle(worker)
                       )}
-                    />
-                    {worker.status}
-                  </span>
-                </div>
-
-                <div className="space-y-3 text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Mail className="h-4 w-4" />
-                    <span>{worker.email}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Phone className="h-4 w-4" />
-                    <span>{worker.phone}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Briefcase className="h-4 w-4" />
-                    <span>{worker.department}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <ClipboardList className="h-4 w-4" />
-                    <span>{worker.totalReports || 0} reports handled</span>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <MapPin className="h-4 w-4" />
-                    <span>
-                      {worker.liveLocation?.latitude &&
-                      worker.liveLocation?.longitude
-                        ? `${worker.liveLocation.latitude}, ${worker.liveLocation.longitude}`
-                        : "Location not available"}
+                    >
+                      <span
+                        className={cn("h-2 w-2 rounded-full", getDotColor(worker))}
+                      />
+                      {statusText}
                     </span>
                   </div>
-                </div>
 
-                <div className="mt-5 flex gap-2">
-                  <button
-                    onClick={() => handleEdit(worker)}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium hover:bg-muted"
-                  >
-                    <Pencil className="h-4 w-4" />
-                    Edit
-                  </button>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Mail className="h-4 w-4" />
+                      <span>{worker.email || "No email"}</span>
+                    </div>
 
-                  <button
-                    onClick={() => handleDelete(worker.id)}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Delete
-                  </button>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Phone className="h-4 w-4" />
+                      <span>{worker.phone || "No phone number"}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Briefcase className="h-4 w-4" />
+                      <span>{worker.department || "No department"}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <ClipboardList className="h-4 w-4" />
+                      <span>{worker.resolvedCount || 0} reports resolved</span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <MapPin className="h-4 w-4" />
+                      <span>
+                        {worker.location?.latitude && worker.location?.longitude
+                        ? `${worker.location.latitude}, ${worker.location.longitude}`
+                        : "Location not available"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 flex gap-2">
+                    <button
+                      onClick={() => handleEdit(worker)}
+                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium hover:bg-muted"
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Edit
+                    </button>
+
+                    <button
+                      onClick={() => handleDelete(worker.id)}
+                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -411,12 +451,12 @@ function WorkersPage() {
               <div className="mb-5 flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-bold">
-                    {editingWorker ? "Edit Worker" : "Add Worker"}
+                    {editingWorker ? "Edit Field Staff" : "Add Field Staff"}
                   </h2>
                   <p className="text-sm text-muted-foreground">
                     {editingWorker
-                      ? "Update worker details."
-                      : "Register a new field staff worker."}
+                      ? "Update field staff details."
+                      : "Register a new field staff member."}
                   </p>
                 </div>
 
@@ -430,14 +470,14 @@ function WorkersPage() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium">Worker Name</label>
+                  <label className="text-sm font-medium">Field Staff Name</label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
-                    placeholder="Enter worker name"
+                    placeholder="Enter field staff name"
                     className="mt-1 w-full rounded-xl border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-primary"
                     required
                   />
@@ -467,9 +507,6 @@ function WorkersPage() {
                     className="mt-1 w-full rounded-xl border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-primary"
                     required
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Number will be saved with +91 country code.
-                  </p>
                 </div>
 
                 <div>
@@ -522,7 +559,7 @@ function WorkersPage() {
                     type="submit"
                     className="flex-1 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
                   >
-                    {editingWorker ? "Update Worker" : "Add Worker"}
+                    {editingWorker ? "Update Field Staff" : "Add Field Staff"}
                   </button>
                 </div>
               </form>
