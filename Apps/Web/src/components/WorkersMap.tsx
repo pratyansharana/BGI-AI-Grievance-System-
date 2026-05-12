@@ -14,33 +14,41 @@ type FieldStaff = {
   location?: {
     latitude: number;
     longitude: number;
-};
+  };
 };
 
 type WorkersMapProps = {
   workers: FieldStaff[];
 };
 
-const getStatusColor = (dutyStatus: boolean) => {
-  return dutyStatus ? "#22c55e" : "#ef4444";
-};
-
-const getStatusText = (dutyStatus: boolean) => {
-  return dutyStatus ? "Available" : "Off Duty";
-};
-
-const parseCoordinate = (coordinate: string | undefined) => {
-  if (!coordinate) return null;
-
-  const numericValue = parseFloat(coordinate);
-
-  if (Number.isNaN(numericValue)) return null;
-
-  if (coordinate.includes("S") || coordinate.includes("W")) {
-    return -numericValue;
+const getWorkerStatus = (worker: FieldStaff) => {
+  if (worker.assignedTask && worker.assignedTask.trim() !== "") {
+    return "assigned";
   }
 
-  return numericValue;
+  if (worker.duty_status) {
+    return "available";
+  }
+
+  return "off duty";
+};
+
+const getStatusColor = (worker: FieldStaff) => {
+  const status = getWorkerStatus(worker);
+
+  if (status === "available") return "#22c55e";
+  if (status === "assigned") return "#3b82f6";
+  if (status === "off duty") return "#ef4444";
+
+  return "#6b7280";
+};
+
+const getStatusText = (worker: FieldStaff) => {
+  const status = getWorkerStatus(worker);
+
+  if (status === "available") return "Available";
+  if (status === "assigned") return "Assigned";
+  return "Off Duty";
 };
 
 export function WorkersMap({ workers }: WorkersMapProps) {
@@ -55,10 +63,10 @@ export function WorkersMap({ workers }: WorkersMapProps) {
       container: mapContainer.current,
       style: "https://tiles.openfreemap.org/styles/liberty",
       center: [77.4126, 23.2599],
-      zoom: 11,
+      zoom: 10,
     });
 
-    map.addControl(new maplibregl.NavigationControl());
+    map.addControl(new maplibregl.NavigationControl(), "top-right");
 
     map.on("load", () => {
       map.resize();
@@ -73,51 +81,45 @@ export function WorkersMap({ workers }: WorkersMapProps) {
     markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = [];
 
-    const fieldStaffWithLocation = workers
-      .map((worker) => {
-        const latitude = worker.location?.latitude ?? null;
-        const longitude = worker.location?.longitude ?? null;
-
-        return {
-          ...worker,
-          latitude,
-          longitude,
-        };
-      })
-      .filter(
-        (worker) =>
-          worker.latitude !== null &&
-          worker.longitude !== null
-      );
+    const fieldStaffWithLocation = workers.filter(
+      (worker) =>
+        typeof worker.location?.latitude === "number" &&
+        typeof worker.location?.longitude === "number"
+    );
 
     fieldStaffWithLocation.forEach((worker) => {
-      const color = getStatusColor(worker.duty_status);
-      const statusText = getStatusText(worker.duty_status);
+      const color = getStatusColor(worker);
+      const statusText = getStatusText(worker);
 
       const markerElement = document.createElement("div");
-      markerElement.innerHTML = `
-        <div style="
-          width: 22px;
-          height: 22px;
-          border-radius: 9999px;
-          background: ${color};
-          border: 3px solid white;
-          box-shadow: 0 6px 16px rgba(0,0,0,0.25);
-          cursor: pointer;
-          transition: transform 0.2s ease;
-        "></div>
-      `;
+      markerElement.style.width = "28px";
+      markerElement.style.height = "28px";
+      markerElement.style.display = "flex";
+      markerElement.style.alignItems = "center";
+      markerElement.style.justifyContent = "center";
+      markerElement.style.cursor = "pointer";
+
+      const markerDot = document.createElement("div");
+      markerDot.style.width = "20px";
+      markerDot.style.height = "20px";
+      markerDot.style.borderRadius = "9999px";
+      markerDot.style.background = color;
+      markerDot.style.border = "3px solid white";
+      markerDot.style.boxShadow = "0 6px 16px rgba(0,0,0,0.25)";
+      markerDot.style.transition = "scale 0.2s ease";
+
+      markerElement.appendChild(markerDot);
 
       markerElement.onmouseenter = () => {
-        markerElement.style.transform = "scale(1.15)";
+        markerDot.style.scale = "1.2";
       };
 
       markerElement.onmouseleave = () => {
-        markerElement.style.transform = "scale(1)";
+        markerDot.style.scale = "1";
       };
 
       const popup = new maplibregl.Popup({
-        offset: 25,
+        offset: 18,
         closeButton: true,
         closeOnClick: true,
       }).setHTML(`
@@ -172,9 +174,9 @@ export function WorkersMap({ workers }: WorkersMapProps) {
             }</p>
 
             <p style="margin: 0;"><strong>Location:</strong> ${
-              worker.location?.latitude && worker.location?.longitude
-              ? `${worker.location.latitude}, ${worker.location.longitude}`
-              : "Not available"
+              worker.location
+                ? `${worker.location.latitude}, ${worker.location.longitude}`
+                : "Not available"
             }</p>
           </div>
         </div>
@@ -182,8 +184,9 @@ export function WorkersMap({ workers }: WorkersMapProps) {
 
       const marker = new maplibregl.Marker({
         element: markerElement,
+        anchor: "center",
       })
-        .setLngLat([worker.longitude!, worker.latitude!])
+        .setLngLat([worker.location!.longitude, worker.location!.latitude])
         .setPopup(popup)
         .addTo(mapRef.current!);
 

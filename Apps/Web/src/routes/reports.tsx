@@ -34,7 +34,7 @@ function ReportsRoute() {
   return (
     <div className="min-h-screen flex bg-background">
       <AppSidebar />
-      <main className="flex-1 overflow-x-hidden">
+      <main className="flex-1 h-screen overflow-y-auto overflow-x-hidden">
         <ReportsPage />
       </main>
     </div>
@@ -60,8 +60,8 @@ function ReportsPage() {
           ? "pending"
           : r.status?.toLowerCase(),
       createdAt: r.createdAt?.toDate?.() || new Date(),
-      lat: r.lat || 0,
-      lng: r.lng || 0,
+      lat: r.location?.latitude || 0,
+      lng: r.location?.longitude || 0,
     }));
 
     setList(mapped);

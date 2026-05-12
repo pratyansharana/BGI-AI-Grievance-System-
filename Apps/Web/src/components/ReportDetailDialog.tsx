@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./StatusBadge";
 import { useI18n } from "@/lib/i18n";
 import { getWorker } from "@/lib/mockData";
+import { db } from "@/firebase";
+import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
+import { toast } from "sonner";
 import {
   Calendar,
   MapPin,
@@ -21,6 +24,8 @@ import {
   Flag,
   BadgeInfo,
   Hash,
+  CheckCircle2,
+  Clock,
 } from "lucide-react";
 
 interface Props {
@@ -38,14 +43,39 @@ export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
 
   const image = report.image || report.imageUrl;
   const user = report.citizenName || report.userId;
-  const firestoreStatus = report.originalStatus || report.firestoreStatus || report.status || "N/A";
+  const firestoreStatus =
+    report.originalStatus || report.firestoreStatus || report.status || "N/A";
+
+  const normalizedStatus = report.status?.toLowerCase?.();
+
+  const isManualReview =
+    normalizedStatus === "manual_review_required" ||
+    normalizedStatus === "manual review required" ||
+    normalizedStatus === "manual-review-required";
+
   const priority = report.priority || "N/A";
   const category = report.category || "N/A";
   const description = report.description || "N/A";
+
   const date =
     report.createdAt?.toLocaleString?.() ||
     report.createdAt?.toDate?.()?.toLocaleString?.() ||
     "N/A";
+
+  const updateReportStatus = async (newStatus: "Resolved" | "Pending") => {
+    try {
+      await updateDoc(doc(db, "grievances", report.id), {
+        status: newStatus,
+        updatedAt: serverTimestamp(),
+      });
+
+      toast.success(`Report marked as ${newStatus}`);
+      onClose();
+    } catch (error) {
+      console.error("Error updating report status:", error);
+      toast.error("Failed to update report status");
+    }
+  };
 
   return (
     <Dialog open={!!report} onOpenChange={(o) => !o && onClose()}>
@@ -56,19 +86,54 @@ export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
               <DialogTitle className="text-xl">
                 {report.id} · {report.category}
               </DialogTitle>
+
               <DialogDescription className="mt-1">
                 {report.description}
               </DialogDescription>
             </div>
+
             <StatusBadge status={report.status} />
           </div>
         </DialogHeader>
+
+        {isManualReview && (
+          <section className="mt-4 rounded-xl border border-purple-200 bg-purple-50 p-4">
+            <h4 className="mb-3 text-sm font-semibold text-purple-800">
+              Manual Review Required
+            </h4>
+
+            <p className="mb-4 text-sm text-purple-700">
+              Review this report and choose whether it should be marked as
+              resolved or sent back to pending.
+            </p>
+
+            <div className="flex flex-wrap gap-3">
+              <Button
+                onClick={() => updateReportStatus("Resolved")}
+                className="bg-green-600 text-white hover:bg-green-700"
+              >
+                <CheckCircle2 className="size-4" />
+                Resolved
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => updateReportStatus("Pending")}
+                className="border-yellow-300 text-yellow-700 hover:bg-yellow-50"
+              >
+                <Clock className="size-4" />
+                Pending
+              </Button>
+            </div>
+          </section>
+        )}
 
         <div className="grid md:grid-cols-2 gap-5 mt-2">
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-2">
               {t("image")}
             </p>
+
             <img
               src={image}
               alt={report.category}
@@ -108,11 +173,13 @@ export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
             />
           </div>
         </div>
+
         <section className="mt-5 rounded-xl border bg-secondary/30 p-4">
           <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
             <FileText className="size-4 text-primary" />
             Full Description
           </h4>
+
           <p className="text-sm text-muted-foreground leading-relaxed">
             {description}
           </p>
@@ -131,13 +198,19 @@ export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
                 alt={worker.name}
                 className="size-14 rounded-full ring-2 ring-white"
               />
+
               <div className="flex-1">
                 <p className="font-medium">{worker.name}</p>
+
                 <p className="text-xs text-muted-foreground">
                   {worker.id} · {worker.contact}
                 </p>
+
                 <p className="text-xs mt-1">
-                  <span className="text-muted-foreground">{t("liveLocation")}: </span>
+                  <span className="text-muted-foreground">
+                    {t("liveLocation")}:{" "}
+                  </span>
+
                   <span className="font-mono">
                     {worker.lat}, {worker.lng}
                   </span>
@@ -151,6 +224,7 @@ export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
 
         <section className="mt-4">
           <h4 className="font-semibold text-sm mb-2">{t("completionProof")}</h4>
+
           {report.proofImage ? (
             <img
               src={report.proofImage}
@@ -199,10 +273,12 @@ function Row({
   return (
     <div className="flex items-start gap-3">
       <span className="mt-0.5 text-primary">{icon}</span>
+
       <div>
         <p className="text-xs uppercase tracking-wide text-muted-foreground">
           {label}
         </p>
+
         <p className="font-medium">{value}</p>
       </div>
     </div>

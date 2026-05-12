@@ -270,7 +270,7 @@ function WorkersPage() {
     <div className="flex min-h-screen bg-background">
       <AppSidebar />
 
-      <main className="flex-1 p-6 lg:p-8">
+      <main className="flex-1 h-screen overflow-y-auto overflow-x-hidden p-6 lg:p-8">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Field Staff</h1>
