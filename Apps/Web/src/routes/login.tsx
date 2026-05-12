@@ -1,4 +1,5 @@
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
+import logo from "@/assets/lokawaazlogo.png";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
@@ -75,8 +76,12 @@ function LoginPage() {
         {/* Top brand + language */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="size-16 rounded-2xl bg-white/80 shadow-lg ring-1 ring-slate-200 flex items-center justify-center">
-              <ShieldCheck className="size-9 text-green-700" />
+            <div className="size-16 rounded-2xl bg-white shadow-lg ring-1 ring-slate-200 flex items-center justify-center overflow-hidden">
+              <img
+                src={logo}
+                alt="LokAwaaz Logo"
+                className="h-12 w-12 object-contain"
+              />
             </div>
 
             <div>
@@ -149,8 +154,12 @@ function LoginPage() {
               className="w-full max-w-md rounded-[2rem] bg-white/85 p-8 shadow-2xl ring-1 ring-slate-200 backdrop-blur-xl"
             >
               <div className="flex items-center gap-4">
-                <div className="size-14 rounded-2xl bg-slate-100 flex items-center justify-center">
-                  <LockKeyhole className="size-7 text-slate-700" />
+                <div className="size-14 rounded-2xl bg-slate-100 flex items-center justify-center overflow-hidden">
+                  <img
+                    src={logo}
+                    alt="LokAwaaz Logo"
+                    className="h-10 w-10 object-contain"
+                  />
                 </div>
 
                 <div>
