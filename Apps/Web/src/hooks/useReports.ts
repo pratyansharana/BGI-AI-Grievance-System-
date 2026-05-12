@@ -13,8 +13,10 @@ export interface FirestoreReport {
   status: string;
   userId: string;
 
-  lat?: number;
-  lng?: number;
+  location?: {
+    latitude: number;
+    longitude: number;
+};
 }
 
 export function useReports() {

@@ -47,7 +47,7 @@ function DashboardRoute() {
   return (
     <div className="min-h-screen flex bg-background">
       <AppSidebar />
-      <main className="flex-1 overflow-x-hidden">
+      <main className="flex-1 h-screen overflow-y-auto overflow-x-hidden">
         <DashboardPage />
       </main>
     </div>
@@ -189,7 +189,7 @@ function DashboardPage() {
                       className="size-12 rounded-lg object-cover"
                     />
                   </td>
-                  <td className="px-5 py-3 font-mono text-xs">{r.lat}, {r.lng}</td>
+                  <td className="px-5 py-3 font-mono text-xs">{r.location?.latitude}, {r.location?.longitude}</td>
                   <td className="px-5 py-3"><StatusBadge
                                               status={
                                                 r.status?.toLowerCase() === "active"

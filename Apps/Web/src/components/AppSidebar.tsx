@@ -21,7 +21,7 @@ export function AppSidebar() {
     exact ? path === to : path === to || path.startsWith(to + "/");
 
   return (
-    <aside className="hidden md:flex w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
+    <aside className="hidden md:flex sticky top-0 h-screen w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
       <div className="px-5 py-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
           <div className="size-10 rounded-xl bg-[var(--gradient-brand)] flex items-center justify-center shadow-(--shadow-elev)">
@@ -34,7 +34,7 @@ export function AppSidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {items.map((it) => {
           const active = isActive(it.to, it.exact);
           return (
