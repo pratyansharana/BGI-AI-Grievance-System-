@@ -3,9 +3,8 @@ import * as admin from 'firebase-admin';
 
 admin.initializeApp();
 
-/** * Interface updated to match your exact Firestore fields:
- * - duty_status is boolean
- * - location is the geopoint field
+/**
+ * Interface representing the Field Staff document structure in Firestore.
  */
 interface Worker {
     fsid: string;
@@ -17,6 +16,9 @@ interface Worker {
     email: string;
 }
 
+/**
+ * Calculates the Haversine distance between two coordinates in kilometers.
+ */
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const R = 6371; 
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -27,28 +29,42 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
     return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
+/**
+ * Auto-assigns the nearest available worker when a grievance status becomes 'Routed'.
+ * Uses onWrite to capture both creations and updates.
+ */
 export const autoAssignGrievance = functions.firestore
     .document('grievances/{reportId}')
-    .onUpdate(async (change) => {
-        const after = change.after.data();
-        const before = change.before.data();
-        const reportId = change.after.id;
+    .onWrite(async (change, context) => {
+        const after = change.after.exists ? change.after.data() : null;
+        const reportId = context.params.reportId;
 
-        if (!after || !before) return null;
+        // Exit if document was deleted
+        if (!after) {
+            console.log(`Report ${reportId} was deleted. Skipping.`);
+            return null;
+        }
 
-        // Trigger when status changes to 'Routed'
-        if (after.status === 'Routed' && before.status !== 'Routed') {
+        // Trigger logic: Process if status is 'Routed'
+        if (after.status === 'Routed') {
             const { category, location: grievanceLoc, userId } = after;
 
+            if (!grievanceLoc) {
+                console.error(`Report ${reportId} missing location coordinates.`);
+                return null;
+            }
+
             try {
-                // Querying based on your 'Road Maintenance' style departments
+                console.log(`Attempting assignment for ${reportId} [Category: ${category}]`);
+
+                // Query available workers in the specific department
                 const staffQuery = await admin.firestore().collection('field_staff')
                     .where('department', '==', category)
-                    .where('duty_status', '==', true) // true = Available in your schema
+                    .where('duty_status', '==', true) 
                     .get();
 
                 if (staffQuery.empty) {
-                    console.log(`No workers available for department: ${category}`);
+                    console.log(`No available workers found in department: ${category}`);
                     return null;
                 }
 
@@ -57,7 +73,6 @@ export const autoAssignGrievance = functions.firestore
 
                 staffQuery.forEach(doc => {
                     const workerData = doc.data() as Worker;
-                    // Using your 'location' field name
                     const distance = calculateDistance(
                         grievanceLoc.latitude, grievanceLoc.longitude,
                         workerData.location.latitude, workerData.location.longitude
@@ -65,44 +80,52 @@ export const autoAssignGrievance = functions.firestore
 
                     if (distance < shortestDistance) {
                         shortestDistance = distance;
-                        nearestWorker = { fsid: doc.id, ...workerData };
+                        // doc.id is used as the authoritative fsid
+                        nearestWorker = { ...workerData, fsid: doc.id };
                     }
                 });
 
-                if (nearestWorker) {
+                if (nearestWorker !== null) {
+                    const worker: Worker = nearestWorker;
                     const batch = admin.firestore().batch();
 
-                    // Update Grievance
+                    console.log(`Worker Found: ${worker.name} (${shortestDistance.toFixed(2)} km away)`);
+
+                    // 1. Update Grievance document
                     batch.update(admin.firestore().collection('grievances').doc(reportId), {
-                        workerId: nearestWorker.fsid,
-                        workerName: nearestWorker.name,
+                        workerId: worker.fsid,
+                        workerName: worker.name,
                         status: 'In Progress',
                         assignedAt: admin.firestore.FieldValue.serverTimestamp()
                     });
 
-                    // Update Worker: set duty_status to false (Busy)
-                    batch.update(admin.firestore().collection('field_staff').doc(nearestWorker.fsid), {
+                    // 2. Update Worker document: set to Busy (false)
+                    batch.update(admin.firestore().collection('field_staff').doc(worker.fsid), {
                         duty_status: false,
                         assignedTask: reportId,
                         lastUpdated: Date.now()
                     });
 
                     await batch.commit();
-                    console.log(`Assigned ${reportId} to ${nearestWorker.name}`);
+                    console.log(`Successfully assigned ${reportId} to ${worker.name}`);
                     
-                    await notifyParties(userId, nearestWorker, category);
+                    // 3. Dispatch Push Notifications
+                    await notifyParties(userId, worker, category);
                 }
             } catch (err) {
-                console.error("Assignment Error:", err);
+                console.error("Assignment Engine Error:", err);
             }
         }
         return null;
     });
 
+/**
+ * Sends push notifications to both the citizen and the assigned worker.
+ */
 async function notifyParties(userId: string, worker: Worker, category: string) {
     const messages: any[] = [];
 
-    // Notify User
+    // Notification to Citizen
     messages.push(admin.messaging().send({
         topic: userId,
         notification: {
@@ -111,16 +134,21 @@ async function notifyParties(userId: string, worker: Worker, category: string) {
         }
     }));
 
-    // Notify Worker
+    // Notification to Worker
     if (worker.fcmToken) {
         messages.push(admin.messaging().send({
             token: worker.fcmToken,
             notification: {
-                title: 'New Task! 📍',
-                body: `New ${category} task assigned. View details in app.`
+                title: 'New Task Assigned! 📍',
+                body: `New ${category} task nearby. Tap to view details.`
             }
         }));
     }
 
-    return Promise.all(messages);
+    try {
+        await Promise.all(messages);
+        console.log("Notifications dispatched successfully.");
+    } catch (notificationError) {
+        console.error("FCM Dispatch Error:", notificationError);
+    }
 }

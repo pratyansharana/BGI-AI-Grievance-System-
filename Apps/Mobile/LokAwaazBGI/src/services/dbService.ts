@@ -3,6 +3,12 @@ import { collection, addDoc, serverTimestamp, GeoPoint } from 'firebase/firestor
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Grievance } from '../types';
 
+/**
+ * Handles the full submission flow for a grievance.
+ * Updates:
+ * 1. Sets status to 'Routed' to trigger Cloud Function auto-assignment.
+ * 2. Includes aiMeta to store confidence and routing scores.
+ */
 export const submitGrievance = async (
     userId: string, 
     data: Partial<Grievance>, 
@@ -12,12 +18,9 @@ export const submitGrievance = async (
     try {
         console.log("[dbService] Starting submission for user:", userId);
         
-        // --- DEBUG LOG 1: Check exactly what is being passed into the function ---
-        console.log("[dbService] RAW incoming locationCoords:", locationCoords);
-
         let imageUrl = null;
 
-        // 1. Upload Image if exists
+        // 1. Upload Image to Firebase Storage
         if (imageUri) {
             console.log("[dbService] Uploading image...");
             const response = await fetch(imageUri);
@@ -28,32 +31,38 @@ export const submitGrievance = async (
             console.log("[dbService] Image URL generated:", imageUrl);
         }
 
-        // --- DEBUG LOG 2: Check the GeoPoint conversion ---
+        // 2. Prepare GeoPoint for Proximity Calculation
         const finalLocation = locationCoords 
             ? new GeoPoint(locationCoords.latitude, locationCoords.longitude) 
             : null;
-        console.log("[dbService] Evaluated GeoPoint location:", finalLocation);
 
-        // 2. Prepare Final Document
-        const grievanceData: Omit<Grievance, 'id'> = {
+        // 3. Prepare Final Document matching Cloud Function expectations
+        const grievanceData: any = {
             userId,
             citizenName: data.citizenName || 'Anonymous',
             description: data.description || '',
-            category: data.category || 'Uncategorized',
+            category: data.category || 'Uncategorized', // Must match Worker Department exactly
             priority: data.priority || 'Low',
             imageUrl: imageUrl || null,
             location: finalLocation,
-            status: 'Active',
+            /**
+             * CRITICAL: Changed 'Active' to 'Routed'.
+             * Your Cloud Function trigger (onWrite/onUpdate) specifically checks for 
+             * after.status === 'Routed' to start worker assignment.
+             */
+            status: 'Routed', 
             createdAt: serverTimestamp(),
+            // Pass AI metadata from your FastAPI analysis
+            aiMeta: (data as any).aiMeta || {
+                confidence: 0,
+                needs_review: true,
+                all_scores: {}
+            }
         };
 
-        // --- DEBUG LOG 3: Inspect the exact object right before saving ---
-        console.log("[dbService] Final payload sending to Firestore:", {
-            ...grievanceData,
-            createdAt: 'SERVER_TIMESTAMP_FIRED' // Simplified for console readability
-        });
+        console.log("[dbService] Final payload sending to Firestore:", grievanceData);
 
-        // 3. Save to Firestore
+        // 4. Save to Firestore
         const docRef = await addDoc(collection(db, "grievances"), grievanceData);
         console.log("[dbService] Firestore document created with ID:", docRef.id);
         
