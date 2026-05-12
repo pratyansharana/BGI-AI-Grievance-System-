@@ -37,6 +37,8 @@ import {
   Timestamp,
   FirestoreError,
 } from 'firebase/firestore';
+import * as Location from 'expo-location'; // Location import
+
 import { auth, db } from '../config/firebaseconfig';
 import { submitGrievance } from '../services/dbService';
 import { checkAndRegisterUser, saveUserProfile } from '../services/userService';
@@ -112,7 +114,6 @@ type SubmitPhase = 'idle' | 'analyzing' | 'uploading' | 'success' | 'error';
 const { width } = Dimensions.get('window');
 const MAX_IMAGES = 4;
 
-// Added strict Record typings to prevent TS indexing errors
 const PRIORITY_CONFIG: Record<string, { color: string, bg: string, label: string }> = {
   High:   { color: '#EF4444', bg: '#FEF2F2', label: 'HIGH' },
   Medium: { color: '#F59E0B', bg: '#FFFBEB', label: 'MED' },
@@ -242,6 +243,26 @@ export default function HomeScreen({ navigation }: { navigation: any }) {
 
     setPhase('analyzing');
     try {
+      // ─── 1. GRAB GPS LOCATION ───
+      let locationCoords: { latitude: number; longitude: number } | undefined = undefined;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          // Using Balanced accuracy so it doesn't hang forever waiting for a perfect satellite lock
+          const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          locationCoords = {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          };
+          console.log("GPS Acquired:", locationCoords);
+        } else {
+          console.log("Location permission denied by user.");
+        }
+      } catch (locErr) {
+        console.log("Failed to fetch location:", locErr);
+      }
+
+      // ─── 2. RUN AI CLASSIFICATION ───
       let ai: AIAnalysisResult;
       try {
         ai = await analyzeGrievance(description);
@@ -251,6 +272,7 @@ export default function HomeScreen({ navigation }: { navigation: any }) {
       setAiResult(ai);
       setPhase('uploading');
 
+      // ─── 3. SUBMIT TO FIREBASE WITH LOCATION ───
       const submission = await submitGrievance(uid, {
         citizenName: fullName || displayName,
         description: description.trim(),
@@ -258,7 +280,7 @@ export default function HomeScreen({ navigation }: { navigation: any }) {
         priority: ai.priority,
         status: ai.status as any,
         aiMeta: { confidence: ai.confidence, needs_review: ai.needs_review, all_scores: ai.all_scores ?? {} }
-      }, capturedImages[0]);
+      }, capturedImages[0], locationCoords); // <-- locationCoords safely passed here
 
       if (submission.success) {
         setSubmittedId(submission.id!);

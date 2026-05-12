@@ -26,7 +26,7 @@ export default function AppNavigator(){
             <stack.Screen 
                 name="TrackReport" 
                 component={TrackReportScreen} 
-                options={{ headerShown: true, title: 'Track Report' }}
+                options={{ headerShown: false, title: 'Track Report' }}
             />
         </stack.Navigator>
         

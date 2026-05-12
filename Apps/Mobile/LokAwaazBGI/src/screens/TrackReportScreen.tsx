@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   glowTop: { position: 'absolute', top: -100, right: -150, width: 400, height: 400, borderRadius: 200, backgroundColor: '#6366F1', opacity: 0.06 },
   glowBottom: { position: 'absolute', bottom: -150, left: -100, width: 500, height: 500, borderRadius: 250, backgroundColor: '#818CF8', opacity: 0.06 },
 
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16, backgroundColor: '#F8FAFC' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16, backgroundColor: '#F8FAFC', marginTop: 20, },
   backBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#64748B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
   headerTitleWrap: { flex: 1, alignItems: 'center' },
   headerLabel: { fontSize: 11, fontWeight: '700', color: '#64748B', letterSpacing: 1, marginBottom: 4 },
