@@ -9,8 +9,8 @@ import {
   setDoc,
   updateDoc,
 } from "firebase/firestore";
-import { db , auth } from "@/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
+import { db, auth } from "@/firebase";
 import { useAuth } from "@/lib/auth";
 import { AppSidebar } from "@/components/AppSidebar";
 import { WorkersMap } from "@/components/WorkersMap";
@@ -26,6 +26,12 @@ import {
   Pencil,
   Trash2,
   Lock,
+  CheckCircle2,
+  XCircle,
+  ShieldCheck,
+  ExternalLink,
+  Camera,
+  IdCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +40,8 @@ export const Route = createFileRoute("/workers")({
 });
 
 type Department = "Electricity" | "Water Supply" | "Sanitation" | "Roads";
+
+type VerificationStatus = "Pending" | "Approved" | "Rejected";
 
 type Worker = {
   id: string;
@@ -51,6 +59,10 @@ type Worker = {
     longitude: number;
   };
   lastUpdated?: number;
+  workerType?: "Freelancer" | "Municipality Staff";
+  verificationStatus?: VerificationStatus;
+  selfieUrl?: string;
+  aadhaarUrl?: string;
 };
 
 type FormData = {
@@ -132,6 +144,28 @@ function WorkersPage() {
     });
   };
 
+  const isApprovedWorker = (worker: Worker) => {
+    if (worker.workerType === "Freelancer") {
+      return worker.verificationStatus === "Approved";
+    }
+
+    return true;
+  };
+
+  const approvedWorkers = workers.filter(isApprovedWorker);
+
+  const pendingFreelancers = workers.filter(
+    (worker) =>
+      worker.workerType === "Freelancer" &&
+      worker.verificationStatus === "Pending"
+  );
+
+  const rejectedFreelancers = workers.filter(
+    (worker) =>
+      worker.workerType === "Freelancer" &&
+      worker.verificationStatus === "Rejected"
+  );
+
   const getStatusText = (worker: Worker) => {
     if (worker.assignedTask && worker.assignedTask.trim() !== "") {
       return "assigned";
@@ -193,48 +227,87 @@ function WorkersPage() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  try {
-    if (editingWorker) {
-      await updateDoc(doc(db, "field_staff", editingWorker.id), {
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        department: formData.department,
-        lastUpdated: Date.now(),
-        updatedAt: serverTimestamp(),
-      });
-    } else {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.password
-      );
+    try {
+      if (editingWorker) {
+        await updateDoc(doc(db, "field_staff", editingWorker.id), {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          department: formData.department,
+          lastUpdated: Date.now(),
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          formData.email,
+          formData.password
+        );
 
-      const uid = userCredential.user.uid;
+        const uid = userCredential.user.uid;
 
-      await setDoc(doc(db, "field_staff", uid), {
-        fsid: uid,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        department: formData.department,
-        designation: "Field Worker",
-        duty_status: true,
-        assignedTask: "",
-        resolvedCount: 0,
-        lastUpdated: Date.now(),
-        createdAt: serverTimestamp(),
-      });
+        await setDoc(doc(db, "field_staff", uid), {
+          fsid: uid,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          department: formData.department,
+          designation: "Field Worker",
+          duty_status: true,
+          assignedTask: "",
+          resolvedCount: 0,
+          workerType: "Municipality Staff",
+          verificationStatus: "Approved",
+          lastUpdated: Date.now(),
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      await fetchWorkers();
+      handleCloseForm();
+    } catch (error) {
+      console.error("Error saving field staff:", error);
     }
+  };
 
-    await fetchWorkers();
-    handleCloseForm();
-  } catch (error) {
-    console.error("Error saving field staff:", error);
-  }
-};
+  const handleApproveFreelancer = async (workerId: string) => {
+    try {
+      await updateDoc(doc(db, "field_staff", workerId), {
+        verificationStatus: "Approved",
+        duty_status: true,
+        designation: "Field Worker",
+        lastUpdated: Date.now(),
+        verifiedAt: serverTimestamp(),
+      });
+
+      await fetchWorkers();
+    } catch (error) {
+      console.error("Error approving freelancer:", error);
+    }
+  };
+
+  const handleRejectFreelancer = async (workerId: string) => {
+    const confirmReject = window.confirm(
+      "Are you sure you want to reject this freelancer?"
+    );
+
+    if (!confirmReject) return;
+
+    try {
+      await updateDoc(doc(db, "field_staff", workerId), {
+        verificationStatus: "Rejected",
+        duty_status: false,
+        lastUpdated: Date.now(),
+        rejectedAt: serverTimestamp(),
+      });
+
+      await fetchWorkers();
+    } catch (error) {
+      console.error("Error rejecting freelancer:", error);
+    }
+  };
 
   const handleDelete = async (workerId: string) => {
     const confirmDelete = window.confirm(
@@ -251,31 +324,33 @@ function WorkersPage() {
     }
   };
 
-  const availableCount = workers.filter(
+  const availableCount = approvedWorkers.filter(
     (w) =>
       w.duty_status === true && (!w.assignedTask || w.assignedTask.trim() === "")
   ).length;
 
-  const assignedCount = workers.filter(
+  const assignedCount = approvedWorkers.filter(
     (w) => w.assignedTask && w.assignedTask.trim() !== ""
   ).length;
 
-  const offDutyCount = workers.filter((w) => w.duty_status === false).length;
+  const offDutyCount = approvedWorkers.filter(
+    (w) => w.duty_status === false
+  ).length;
 
   const filteredWorkers =
     statusFilter === "all"
-      ? workers
+      ? approvedWorkers
       : statusFilter === "available"
-        ? workers.filter(
+        ? approvedWorkers.filter(
             (w) =>
               w.duty_status === true &&
               (!w.assignedTask || w.assignedTask.trim() === "")
           )
         : statusFilter === "assigned"
-          ? workers.filter(
+          ? approvedWorkers.filter(
               (w) => w.assignedTask && w.assignedTask.trim() !== ""
             )
-          : workers.filter((w) => w.duty_status === false);
+          : approvedWorkers.filter((w) => w.duty_status === false);
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -286,7 +361,8 @@ function WorkersPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Field Staff</h1>
             <p className="mt-1 text-muted-foreground">
-              Manage field staff members, status, and live locations.
+              Manage field staff members, status, verification, and live
+              locations.
             </p>
           </div>
 
@@ -299,10 +375,10 @@ function WorkersPage() {
           </button>
         </div>
 
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="rounded-2xl border bg-card p-5 shadow-sm">
             <p className="text-sm text-muted-foreground">Total Field Staff</p>
-            <p className="mt-2 text-3xl font-bold">{workers.length}</p>
+            <p className="mt-2 text-3xl font-bold">{approvedWorkers.length}</p>
           </div>
 
           <div className="rounded-2xl border bg-card p-5 shadow-sm">
@@ -325,13 +401,155 @@ function WorkersPage() {
               {offDutyCount}
             </p>
           </div>
+
+          <div className="rounded-2xl border bg-card p-5 shadow-sm">
+            <p className="text-sm text-muted-foreground">Pending Verification</p>
+            <p className="mt-2 text-3xl font-bold text-yellow-600">
+              {pendingFreelancers.length}
+            </p>
+          </div>
         </div>
+
+        {pendingFreelancers.length > 0 && (
+          <section className="mb-6 rounded-2xl border bg-card p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="flex items-center gap-2 font-semibold">
+                  <ShieldCheck className="h-5 w-5 text-yellow-600" />
+                  Pending Freelancer Verification
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Review selfie and Aadhaar proof before allowing freelancers to
+                  receive civic tasks.
+                </p>
+              </div>
+
+              <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-700">
+                {pendingFreelancers.length} pending
+              </span>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {pendingFreelancers.map((worker) => (
+                <div
+                  key={worker.id}
+                  className="rounded-2xl border bg-background p-4 shadow-sm"
+                >
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-semibold">
+                        {worker.name || "Freelancer"}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {worker.email}
+                      </p>
+                    </div>
+
+                    <span className="rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-medium text-yellow-700">
+                      Pending
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Briefcase className="h-4 w-4" />
+                      <span>{worker.department || "No department"}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4" />
+                      <span>{worker.phone || "No phone number"}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      <span>
+                        {worker.location?.latitude && worker.location?.longitude
+                          ? `${worker.location.latitude}, ${worker.location.longitude}`
+                          : "Location not available"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    {worker.selfieUrl && (
+                      <a href={worker.selfieUrl} target="_blank" rel="noreferrer">
+                        <div className="overflow-hidden rounded-xl border bg-muted">
+                          <img
+                          src={worker.selfieUrl}
+                          alt="Selfie proof"
+                          className="h-32 w-full object-cover"
+                          />
+                          </div>
+                          <p className="mt-1 flex items-center justify-center gap-1 text-xs font-medium">
+                            <Camera className="h-3.5 w-3.5" />
+                            Selfie
+                            <ExternalLink className="h-3 w-3" />
+                            </p>
+                            </a>
+                          )}
+
+      
+
+  {worker.aadhaarUrl && (
+    <a
+      href={worker.aadhaarUrl}
+      target="_blank"
+      rel="noreferrer"
+    >
+      <div className="overflow-hidden rounded-xl border bg-muted">
+        <img
+          src={worker.aadhaarUrl}
+          alt="Aadhaar proof"
+          className="h-32 w-full object-cover"
+        />
+      </div>
+
+      <p className="mt-1 flex items-center justify-center gap-1 text-xs font-medium">
+        <IdCard className="h-3.5 w-3.5" />
+        Aadhaar
+        <ExternalLink className="h-3 w-3" />
+      </p>
+    </a>
+  )}
+</div>
+
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      onClick={() => handleApproveFreelancer(worker.id)}
+                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      Approve
+                    </button>
+
+                    <button
+                      onClick={() => handleRejectFreelancer(worker.id)}
+                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                    >
+                      <XCircle className="h-4 w-4" />
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {rejectedFreelancers.length > 0 && (
+          <div className="mb-6 rounded-2xl border border-red-100 bg-red-50 px-5 py-3 text-sm text-red-700">
+            {rejectedFreelancers.length} freelancer request
+            {rejectedFreelancers.length > 1 ? "s are" : " is"} rejected and
+            hidden from active field staff.
+          </div>
+        )}
 
         <div className="mb-6 flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-semibold">Field Staff Status Filter</h2>
             <p className="text-sm text-muted-foreground">
-              Filter field staff cards and map markers by status.
+              Filter verified field staff cards and map markers by status.
             </p>
           </div>
 
@@ -344,7 +562,7 @@ function WorkersPage() {
             }
             className="rounded-xl border bg-background px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
           >
-            <option value="all">All Field Staff ({workers.length})</option>
+            <option value="all">All Field Staff ({approvedWorkers.length})</option>
             <option value="available">Available ({availableCount})</option>
             <option value="assigned">Assigned ({assignedCount})</option>
             <option value="off duty">Off Duty ({offDutyCount})</option>
@@ -391,7 +609,7 @@ function WorkersPage() {
               </div>
             ) : filteredWorkers.length === 0 ? (
               <div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">
-                No field staff found for this status.
+                No verified field staff found for this status.
               </div>
             ) : (
               <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -413,9 +631,22 @@ function WorkersPage() {
                             <h3 className="font-semibold">
                               {worker.name || "Field Staff"}
                             </h3>
-                            <p className="text-sm text-muted-foreground">
-                              {worker.designation || "Field Worker"}
-                            </p>
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                              <p className="text-sm text-muted-foreground">
+                                {worker.designation || "Field Worker"}
+                              </p>
+
+                              <span
+                                className={cn(
+                                  "rounded-full px-2 py-0.5 text-[11px] font-medium",
+                                  worker.workerType === "Freelancer"
+                                    ? "bg-purple-100 text-purple-700"
+                                    : "bg-blue-100 text-blue-700"
+                                )}
+                              >
+                                {worker.workerType || "Municipality Staff"}
+                              </span>
+                            </div>
                           </div>
                         </div>
 
