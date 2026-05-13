@@ -10,7 +10,13 @@ import { ReportDetailDialog } from "@/components/ReportDetailDialog";
 import { MapView } from "@/components/MapView";
 import { useMemo, useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Search, Eye, Filter, Tag } from "lucide-react";
+import {
+  Search,
+  Filter,
+  Tag,
+  ArrowDownWideNarrow,
+  ArrowUpNarrowWide,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -37,11 +43,13 @@ type CategoryFilter =
   | "Roads"
   | "Uncategorized";
 
+type PrioritySort = "desc" | "asc";
+
 type ReportItem = any;
 
 const STATUS_FILTERS: { label: string; value: StatusFilter }[] = [
   { label: "All Status", value: "all" },
-  { label: "Pending", value: "pending" },
+  { label: "Unresolved", value: "pending" },
   { label: "Assigned", value: "assigned" },
   { label: "Resolved", value: "resolved" },
   { label: "Rejected", value: "rejected" },
@@ -88,6 +96,26 @@ function normalizeCategory(category?: string): CategoryFilter {
   return "Uncategorized";
 }
 
+function getPriorityValue(priority?: string) {
+  const p = priority?.toLowerCase().trim();
+
+  if (p === "high") return 3;
+  if (p === "medium") return 2;
+  if (p === "low") return 1;
+
+  return 0;
+}
+
+function getPriorityStyle(priority?: string) {
+  const p = priority?.toLowerCase().trim();
+
+  if (p === "high") return "bg-red-100 text-red-700 ring-red-200";
+  if (p === "medium") return "bg-yellow-100 text-yellow-700 ring-yellow-200";
+  if (p === "low") return "bg-green-100 text-green-700 ring-green-200";
+
+  return "bg-secondary text-secondary-foreground ring-border";
+}
+
 function ReportsRoute() {
   const { isAuthed, ready } = useAuth();
 
@@ -111,8 +139,9 @@ function ReportsPage() {
 
   const [selectedReports, setSelectedReports] = useState<string[]>([]);
   const [list, setList] = useState<ReportItem[]>([]);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("pending");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const [prioritySort, setPrioritySort] = useState<PrioritySort>("desc");
   const [search, setSearch] = useState("");
   const [active, setActive] = useState<ReportItem | null>(null);
 
@@ -132,7 +161,7 @@ function ReportsPage() {
   }, [firestoreReports]);
 
   const filtered = useMemo(() => {
-    return list.filter((r) => {
+    const filteredList = list.filter((r) => {
       const matchesStatus =
         statusFilter === "all" || r.status === statusFilter;
 
@@ -151,7 +180,16 @@ function ReportsPage() {
 
       return matchesStatus && matchesCategory && matchesSearch;
     });
-  }, [list, statusFilter, categoryFilter, search]);
+
+    return [...filteredList].sort((a, b) => {
+      const aPriority = getPriorityValue(a.priority);
+      const bPriority = getPriorityValue(b.priority);
+
+      return prioritySort === "desc"
+        ? bPriority - aPriority
+        : aPriority - bPriority;
+    });
+  }, [list, statusFilter, categoryFilter, prioritySort, search]);
 
   const selectedVisibleCount = selectedReports.filter((id) =>
     filtered.some((r) => r.id === id)
@@ -161,7 +199,9 @@ function ReportsPage() {
     try {
       await deleteDoc(doc(db, "grievances", id));
       setList((l) => l.filter((r) => r.id !== id));
-      setSelectedReports((prev) => prev.filter((selectedId) => selectedId !== id));
+      setSelectedReports((prev) =>
+        prev.filter((selectedId) => selectedId !== id)
+      );
       toast.success(t("reportDeleted"));
     } catch (error) {
       console.error("Error deleting report:", error);
@@ -176,13 +216,17 @@ function ReportsPage() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedVisibleCount === filtered.length && filtered.length > 0) {
+    if (filtered.length === 0) return;
+
+    if (selectedVisibleCount === filtered.length) {
       setSelectedReports((prev) =>
         prev.filter((id) => !filtered.some((r) => r.id === id))
       );
     } else {
       const filteredIds = filtered.map((r) => r.id);
-      setSelectedReports((prev) => Array.from(new Set([...prev, ...filteredIds])));
+      setSelectedReports((prev) =>
+        Array.from(new Set([...prev, ...filteredIds]))
+      );
     }
   };
 
@@ -229,100 +273,129 @@ function ReportsPage() {
 
       <div className="rounded-2xl bg-card border shadow-(--shadow-soft) overflow-hidden">
         <div className="p-4 border-b bg-card">
-          <div className="grid gap-3 xl:grid-cols-[1fr_230px_250px_auto]">
-            <div className="relative">
-              <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <div className="flex flex-col gap-3">
+            <div className="grid gap-3 xl:grid-cols-[minmax(260px,1fr)_230px_250px_auto]">
+              <div className="relative">
+                <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
 
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search reports..."
-                className="pl-9 h-11 rounded-xl"
-              />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search reports..."
+                  className="pl-9 h-11 rounded-xl"
+                />
+              </div>
+
+              <div className="relative">
+                <Filter className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+
+                <select
+                  value={statusFilter}
+                  onChange={(e) =>
+                    setStatusFilter(e.target.value as StatusFilter)
+                  }
+                  className="h-11 w-full appearance-none rounded-xl border bg-background pl-9 pr-4 text-sm font-medium outline-none transition focus:ring-2 focus:ring-primary"
+                >
+                  {STATUS_FILTERS.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="relative">
+                <Tag className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+
+                <select
+                  value={categoryFilter}
+                  onChange={(e) =>
+                    setCategoryFilter(e.target.value as CategoryFilter)
+                  }
+                  className="h-11 w-full appearance-none rounded-xl border bg-background pl-9 pr-4 text-sm font-medium outline-none transition focus:ring-2 focus:ring-primary"
+                >
+                  {CATEGORY_FILTERS.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  onClick={() =>
+                    setPrioritySort((prev) =>
+                      prev === "desc" ? "asc" : "desc"
+                    )
+                  }
+                  className="h-11 w-11 shrink-0 rounded-xl border bg-background flex items-center justify-center transition hover:bg-secondary/50"
+                  title={
+                    prioritySort === "desc"
+                      ? "Priority: High to Low"
+                      : "Priority: Low to High"
+                  }
+                >
+                  {prioritySort === "desc" ? (
+                    <ArrowDownWideNarrow className="size-4" />
+                  ) : (
+                    <ArrowUpNarrowWide className="size-4" />
+                  )}
+                </button>
+
+                <button
+                  onClick={toggleSelectAll}
+                  disabled={filtered.length === 0}
+                  className="h-11 whitespace-nowrap rounded-xl bg-secondary px-4 text-sm font-medium text-secondary-foreground transition hover:bg-secondary/70 disabled:opacity-50"
+                >
+                  {selectedVisibleCount === filtered.length &&
+                  filtered.length > 0
+                    ? "Unselect All"
+                    : "Select All"}
+                </button>
+
+                {selectedReports.length > 0 && (
+                  <button
+                    onClick={deleteSelectedReports}
+                    className="h-11 whitespace-nowrap rounded-xl bg-red-600 px-4 text-sm font-medium text-white transition hover:bg-red-700"
+                  >
+                    Delete ({selectedReports.length})
+                  </button>
+                )}
+              </div>
             </div>
 
-            <div className="relative">
-              <Filter className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="inline-flex h-9 items-center rounded-full bg-secondary px-4 text-muted-foreground">
+                Showing {filtered.length} of {list.length} reports
+              </span>
 
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-                className="h-11 w-full appearance-none rounded-xl border bg-background pl-9 pr-4 text-sm font-medium outline-none transition focus:ring-2 focus:ring-primary"
-              >
-                {STATUS_FILTERS.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+              {statusFilter !== "all" && (
+                <span className="inline-flex h-9 items-center rounded-full bg-primary/10 px-4 text-primary">
+                  Status:{" "}
+                  {
+                    STATUS_FILTERS.find((item) => item.value === statusFilter)
+                      ?.label
+                  }
+                </span>
+              )}
 
-            <div className="relative">
-              <Tag className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              {categoryFilter !== "all" && (
+                <span className="inline-flex h-9 items-center rounded-full bg-primary/10 px-4 text-primary">
+                  Category: {categoryFilter}
+                </span>
+              )}
 
-              <select
-                value={categoryFilter}
-                onChange={(e) =>
-                  setCategoryFilter(e.target.value as CategoryFilter)
-                }
-                className="h-11 w-full appearance-none rounded-xl border bg-background pl-9 pr-4 text-sm font-medium outline-none transition focus:ring-2 focus:ring-primary"
-              >
-                {CATEGORY_FILTERS.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={toggleSelectAll}
-                disabled={filtered.length === 0}
-                className="h-11 rounded-xl bg-secondary px-4 text-sm font-medium text-secondary-foreground transition hover:bg-secondary/70 disabled:opacity-50"
-              >
-                {selectedVisibleCount === filtered.length && filtered.length > 0
-                  ? "Unselect All"
-                  : "Select All"}
-              </button>
+              <span className="inline-flex h-9 items-center rounded-full bg-secondary px-4 text-muted-foreground">
+                Priority: {prioritySort === "desc" ? "High to Low" : "Low to High"}
+              </span>
 
               {selectedReports.length > 0 && (
-                <button
-                  onClick={deleteSelectedReports}
-                  className="h-11 rounded-xl bg-red-600 px-4 text-sm font-medium text-white transition hover:bg-red-700"
-                >
-                  Delete ({selectedReports.length})
-                </button>
+                <span className="inline-flex h-9 items-center rounded-full bg-red-50 px-4 text-red-600">
+                  Selected: {selectedReports.length}
+                </span>
               )}
             </div>
-          </div>
-
-          <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <span className="rounded-full bg-secondary px-3 py-1">
-              Showing {filtered.length} of {list.length} reports
-            </span>
-
-            {statusFilter !== "all" && (
-              <span className="rounded-full bg-primary/10 px-3 py-1 text-primary">
-                Status:{" "}
-                {
-                  STATUS_FILTERS.find((item) => item.value === statusFilter)
-                    ?.label
-                }
-              </span>
-            )}
-
-            {categoryFilter !== "all" && (
-              <span className="rounded-full bg-primary/10 px-3 py-1 text-primary">
-                Category: {categoryFilter}
-              </span>
-            )}
-
-            {selectedReports.length > 0 && (
-              <span className="rounded-full bg-red-50 px-3 py-1 text-red-600">
-                Selected: {selectedReports.length}
-              </span>
-            )}
           </div>
         </div>
 
@@ -337,8 +410,8 @@ function ReportsPage() {
                 <th className="text-left px-5 py-3">{t("location")}</th>
                 <th className="text-left px-5 py-3">Category</th>
                 <th className="text-left px-5 py-3">{t("status")}</th>
+                <th className="text-left px-5 py-3">Priority</th>
                 <th className="text-left px-5 py-3">{t("dateTime")}</th>
-                <th className="text-right px-5 py-3">{t("actions")}</th>
               </tr>
             </thead>
 
@@ -390,21 +463,19 @@ function ReportsPage() {
                     <StatusBadge status={r.status} />
                   </td>
 
-                  <td className="px-5 py-3 text-muted-foreground text-xs">
-                    {new Date(r.createdAt).toLocaleString()}
+                  <td className="px-5 py-3">
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset",
+                        getPriorityStyle(r.priority)
+                      )}
+                    >
+                      {r.priority || "N/A"}
+                    </span>
                   </td>
 
-                  <td className="px-5 py-3 text-right">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActive(r);
-                      }}
-                      className="inline-flex items-center gap-1 text-primary hover:underline text-xs font-medium"
-                    >
-                      <Eye className="size-3.5" />
-                      View
-                    </button>
+                  <td className="px-5 py-3 text-muted-foreground text-xs">
+                    {new Date(r.createdAt).toLocaleString()}
                   </td>
                 </tr>
               ))}

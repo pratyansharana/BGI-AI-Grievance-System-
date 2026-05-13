@@ -8,10 +8,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./StatusBadge";
 import { useI18n } from "@/lib/i18n";
-import { getWorker } from "@/lib/mockData";
 import { db } from "@/firebase";
-import { useState } from "react";
-import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import {
+  collection,
+  doc,
+  getDocs,
+  serverTimestamp,
+  updateDoc,
+} from "firebase/firestore";
 import { toast } from "sonner";
 import {
   Calendar,
@@ -27,6 +32,9 @@ import {
   Hash,
   CheckCircle2,
   Clock,
+  Mail,
+  Briefcase,
+  ImageIcon,
 } from "lucide-react";
 
 interface Props {
@@ -35,15 +43,70 @@ interface Props {
   onDelete: (id: string) => void;
 }
 
+type FieldStaff = {
+  id: string;
+  fsid?: string;
+  name?: string;
+  email?: string;
+  department?: string;
+  designation?: string;
+  assignedTask?: string;
+  resolvedCount?: number;
+  duty_status?: boolean;
+  location?: {
+    latitude?: number;
+    longitude?: number;
+  };
+};
+
 export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
   const { t } = useI18n();
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [assignedWorker, setAssignedWorker] = useState<FieldStaff | null>(null);
+
+  useEffect(() => {
+    const fetchAssignedWorker = async () => {
+      if (!report) return;
+
+      try {
+        const snapshot = await getDocs(collection(db, "field_staff"));
+
+        const staff = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data(),
+        })) as FieldStaff[];
+
+        const matchedWorker =
+          staff.find(
+            (worker) =>
+              worker.id === report.assignedWorkerId ||
+              worker.fsid === report.assignedWorkerId ||
+              worker.id === report.workerId ||
+              worker.fsid === report.workerId ||
+              worker.id === report.fieldStaffId ||
+              worker.fsid === report.fieldStaffId ||
+              worker.assignedTask === report.id
+          ) || null;
+
+        setAssignedWorker(matchedWorker);
+      } catch (error) {
+        console.error("Error fetching assigned field staff:", error);
+        setAssignedWorker(null);
+      }
+    };
+
+    fetchAssignedWorker();
+  }, [report]);
 
   if (!report) return null;
 
-  const worker = report.workerId ? getWorker(report.workerId) : null;
-
   const image = report.image || report.imageUrl;
+  const completionImage =
+    report.completionImageUrl ||
+    report.completionImage ||
+    report.proofImage ||
+    "";
+
   const user = report.citizenName || report.userId;
   const firestoreStatus =
     report.originalStatus || report.firestoreStatus || report.status || "N/A";
@@ -59,10 +122,18 @@ export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
   const category = report.category || "N/A";
   const description = report.description || "N/A";
 
+  const isUncategorized =
+    category?.toLowerCase?.().trim() === "uncategorized";
+
   const date =
     report.createdAt?.toLocaleString?.() ||
     report.createdAt?.toDate?.()?.toLocaleString?.() ||
     "N/A";
+
+  const completedDate =
+    typeof report.completedAt === "number"
+      ? new Date(report.completedAt).toLocaleString()
+      : report.completedAt?.toDate?.()?.toLocaleString?.() || "N/A";
 
   const updateReportStatus = async (newStatus: "Resolved" | "Pending") => {
     try {
@@ -78,28 +149,26 @@ export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
       toast.error("Failed to update report status");
     }
   };
-  const isUncategorized =
-  category?.toLowerCase?.().trim() === "uncategorized";
 
-const updateReportCategory = async () => {
-  if (!selectedCategory) {
-    toast.error("Please select a category");
-    return;
-  }
+  const updateReportCategory = async () => {
+    if (!selectedCategory) {
+      toast.error("Please select a category");
+      return;
+    }
 
-  try {
-    await updateDoc(doc(db, "grievances", report.id), {
-      category: selectedCategory,
-      updatedAt: serverTimestamp(),
-    });
+    try {
+      await updateDoc(doc(db, "grievances", report.id), {
+        category: selectedCategory,
+        updatedAt: serverTimestamp(),
+      });
 
-    toast.success(`Category updated to ${selectedCategory}`);
-    onClose();
-  } catch (error) {
-    console.error("Error updating category:", error);
-    toast.error("Failed to update category");
-  }
-};
+      toast.success(`Category updated to ${selectedCategory}`);
+      onClose();
+    } catch (error) {
+      console.error("Error updating category:", error);
+      toast.error("Failed to update category");
+    }
+  };
 
   return (
     <Dialog open={!!report} onOpenChange={(o) => !o && onClose()}>
@@ -151,35 +220,35 @@ const updateReportCategory = async () => {
             </div>
           </section>
         )}
+
         {isUncategorized && (
-  <section className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
-    <h4 className="mb-3 text-sm font-semibold text-blue-800">
-      Categorize Report
-    </h4>
+          <section className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+            <h4 className="mb-3 text-sm font-semibold text-blue-800">
+              Categorize Report
+            </h4>
 
-    <p className="mb-4 text-sm text-blue-700">
-      This report is currently uncategorized. Please assign it to the correct category.
-    </p>
+            <p className="mb-4 text-sm text-blue-700">
+              This report is currently uncategorized. Please assign it to the
+              correct category.
+            </p>
 
-    <div className="flex flex-col gap-3 sm:flex-row">
-      <select
-        value={selectedCategory}
-        onChange={(e) => setSelectedCategory(e.target.value)}
-        className="h-10 flex-1 rounded-lg border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-primary"
-      >
-        <option value="">Select category</option>
-        <option value="Electricity">Electricity</option>
-        <option value="Water Supply">Water Supply</option>
-        <option value="Sanitation">Sanitation</option>
-        <option value="Roads">Roads</option>
-      </select>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="h-10 flex-1 rounded-lg border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">Select category</option>
+                <option value="Electricity">Electricity</option>
+                <option value="Water Supply">Water Supply</option>
+                <option value="Sanitation">Sanitation</option>
+                <option value="Roads">Roads</option>
+              </select>
 
-      <Button onClick={updateReportCategory}>
-        Update Category
-      </Button>
-    </div>
-  </section>
-)}
+              <Button onClick={updateReportCategory}>Update Category</Button>
+            </div>
+          </section>
+        )}
 
         <div className="grid md:grid-cols-2 gap-5 mt-2">
           <div>
@@ -196,21 +265,18 @@ const updateReportCategory = async () => {
 
           <div className="space-y-3 text-sm">
             <Row icon={<Hash className="size-4" />} label="Report ID" value={report.id} />
-
             <Row icon={<User className="size-4" />} label="Citizen Name" value={user} />
-
             <Row icon={<BadgeInfo className="size-4" />} label="User ID" value={report.userId || "N/A"} />
-
             <Row icon={<Tag className="size-4" />} label="Category" value={category} />
-
             <Row icon={<Flag className="size-4" />} label="Priority" value={priority} />
-
             <Row icon={<FileText className="size-4" />} label="Firestore Status" value={firestoreStatus} />
 
             <Row
               icon={<MapPin className="size-4" />}
               label={t("coordinates")}
-              value={`${report.lat || 0}, ${report.lng || 0}`}
+              value={`${report.lat || report.location?.latitude || 0}, ${
+                report.lng || report.location?.longitude || 0
+              }`}
             />
 
             <Row
@@ -241,49 +307,89 @@ const updateReportCategory = async () => {
         <section className="mt-5 rounded-xl border bg-secondary/40 p-4">
           <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
             <Radio className="size-4 text-primary" />
-            {t("workerAssignment")}
+            Assigned Field Staff
           </h4>
 
-          {worker ? (
-            <div className="flex items-center gap-4">
-              <img
-                src={worker.avatar}
-                alt={worker.name}
-                className="size-14 rounded-full ring-2 ring-white"
-              />
+          {assignedWorker ? (
+            <div className="rounded-xl border bg-background p-4">
+              <div className="flex items-center gap-4">
+                <div className="flex size-14 items-center justify-center rounded-full bg-blue-100 text-lg font-bold text-blue-700">
+                  {assignedWorker.name?.charAt(0)?.toUpperCase() || "F"}
+                </div>
 
-              <div className="flex-1">
-                <p className="font-medium">{worker.name}</p>
+                <div className="flex-1">
+                  <p className="font-semibold">
+                    {assignedWorker.name || "Field Staff"}
+                  </p>
 
-                <p className="text-xs text-muted-foreground">
-                  {worker.id} · {worker.contact}
-                </p>
+                  <p className="text-xs text-muted-foreground">
+                    {assignedWorker.designation || "Field Worker"}
+                  </p>
+                </div>
+              </div>
 
-                <p className="text-xs mt-1">
-                  <span className="text-muted-foreground">
-                    {t("liveLocation")}:{" "}
-                  </span>
+              <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                <Row
+                  icon={<Mail className="size-4" />}
+                  label="Email"
+                  value={assignedWorker.email || "N/A"}
+                />
 
-                  <span className="font-mono">
-                    {worker.lat}, {worker.lng}
-                  </span>
-                </p>
+                <Row
+                  icon={<Briefcase className="size-4" />}
+                  label="Department"
+                  value={assignedWorker.department || "N/A"}
+                />
+
+                <Row
+                  icon={<Hash className="size-4" />}
+                  label="Field Staff ID"
+                  value={assignedWorker.fsid || assignedWorker.id}
+                />
+
+                <Row
+                  icon={<CheckCircle2 className="size-4" />}
+                  label="Resolved Count"
+                  value={`${assignedWorker.resolvedCount ?? 0}`}
+                />
+
+                <Row
+                  icon={<MapPin className="size-4" />}
+                  label="Live Location"
+                  value={
+                    assignedWorker.location?.latitude &&
+                    assignedWorker.location?.longitude
+                      ? `${assignedWorker.location.latitude}, ${assignedWorker.location.longitude}`
+                      : "N/A"
+                  }
+                />
               </div>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">{t("noWorker")}</p>
+            <p className="text-sm text-muted-foreground">
+              No assigned field staff found for this report.
+            </p>
           )}
         </section>
 
         <section className="mt-4">
-          <h4 className="font-semibold text-sm mb-2">{t("completionProof")}</h4>
+          <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+            <ImageIcon className="size-4 text-primary" />
+            Completion Proof
+          </h4>
 
-          {report.proofImage ? (
-            <img
-              src={report.proofImage}
-              alt="proof"
-              className="w-full h-48 object-cover rounded-xl border"
-            />
+          {completionImage ? (
+            <div className="space-y-3">
+              <img
+                src={completionImage}
+                alt="completion proof"
+                className="w-full h-64 object-cover rounded-xl border"
+              />
+
+              <p className="text-xs text-muted-foreground">
+                Completed At: {completedDate}
+              </p>
+            </div>
           ) : (
             <div className="h-32 rounded-xl border-2 border-dashed flex items-center justify-center text-sm text-muted-foreground">
               {t("noProof")}

@@ -18,7 +18,6 @@ import {
   Clock,
   UserCheck,
   CheckCircle2,
-  XCircle,
   AlertTriangle,
   ArrowUpRight,
 } from "lucide-react";
@@ -31,6 +30,13 @@ type ReportStatus =
   | "resolved"
   | "rejected"
   | "manual_review_required";
+
+type CategoryFilter =
+  | "Electricity"
+  | "Water Supply"
+  | "Sanitation"
+  | "Roads"
+  | "Uncategorized";
 
 export const Route = createFileRoute("/")({
   component: DashboardRoute,
@@ -61,6 +67,28 @@ function normalizeStatus(status?: string): ReportStatus {
   }
 
   return "pending";
+}
+
+function normalizeCategory(category?: string): CategoryFilter {
+  const c = category?.trim().toLowerCase();
+
+  if (c === "electricity") return "Electricity";
+  if (c === "water supply" || c === "watersupply") return "Water Supply";
+  if (c === "sanitation") return "Sanitation";
+  if (c === "roads" || c === "road") return "Roads";
+  if (c === "uncategorized") return "Uncategorized";
+
+  return "Uncategorized";
+}
+
+function getPriorityStyle(priority?: string) {
+  const p = priority?.toLowerCase().trim();
+
+  if (p === "high") return "bg-red-100 text-red-700 ring-red-200";
+  if (p === "medium") return "bg-yellow-100 text-yellow-700 ring-yellow-200";
+  if (p === "low") return "bg-green-100 text-green-700 ring-green-200";
+
+  return "bg-secondary text-secondary-foreground ring-border";
 }
 
 function getStatusLabel(status: ReportStatus) {
@@ -120,7 +148,11 @@ function DashboardPage() {
   }));
 
   const recent = [...reports]
-    .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
+    .sort((a, b) => {
+      const aDate = a.createdAt?.toDate?.() || new Date(0);
+      const bDate = b.createdAt?.toDate?.() || new Date(0);
+      return +bDate - +aDate;
+    })
     .slice(0, 6);
 
   const cards = [
@@ -133,7 +165,7 @@ function DashboardPage() {
     },
     {
       key: "pending" as const,
-      label: t("pending"),
+      label: "Unresolved",
       val: counts.pending,
       icon: Clock,
       tone: "var(--color-status-pending)",
@@ -257,50 +289,70 @@ function DashboardPage() {
                 <th className="text-left px-5 py-3">{t("user")}</th>
                 <th className="text-left px-5 py-3">{t("image")}</th>
                 <th className="text-left px-5 py-3">{t("location")}</th>
+                <th className="text-left px-5 py-3">Category</th>
                 <th className="text-left px-5 py-3">{t("status")}</th>
+                <th className="text-left px-5 py-3">Priority</th>
                 <th className="text-left px-5 py-3">{t("dateTime")}</th>
               </tr>
             </thead>
 
             <tbody>
-{recent.map((r, i) => {
-  const normalizedStatus = normalizeStatus(r.status);
+              {recent.map((r, i) => {
+                const normalizedStatus = normalizeStatus(r.status);
+                const normalizedCategory = normalizeCategory(r.category);
 
-  return (
-    <tr
-      key={r.id}
-      className={cn(
-        "border-t hover:bg-secondary/30 transition",
-        i % 2 && "bg-secondary/10"
-      )}
-    >
-      <td className="px-5 py-3 font-medium">
-        {r.citizenName || r.userId}
-      </td>
+                return (
+                  <tr
+                    key={r.id}
+                    className={cn(
+                      "border-t hover:bg-secondary/30 transition",
+                      i % 2 && "bg-secondary/10"
+                    )}
+                  >
+                    <td className="px-5 py-3 font-medium">
+                      {r.citizenName || r.userId}
+                    </td>
 
-      <td className="px-5 py-3">
-        <img
-          src={r.imageUrl}
-          alt=""
-          className="size-12 rounded-lg object-cover"
-        />
-      </td>
+                    <td className="px-5 py-3">
+                      <img
+                        src={r.imageUrl}
+                        alt=""
+                        className="size-12 rounded-lg object-cover"
+                      />
+                    </td>
 
-      <td className="px-5 py-3 font-mono text-xs">
-        {r.location?.latitude ?? 0},{" "}
-        {r.location?.longitude ?? 0}
-      </td>
+                    <td className="px-5 py-3 font-mono text-xs">
+                      {r.location?.latitude ?? 0},{" "}
+                      {r.location?.longitude ?? 0}
+                    </td>
 
-      <td className="px-5 py-3">
-        <StatusBadge status={normalizedStatus} />
-      </td>
+                    <td className="px-5 py-3">
+                      <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">
+                        {normalizedCategory}
+                      </span>
+                    </td>
 
-      <td className="px-5 py-3 text-muted-foreground">
-        {r.createdAt?.toDate?.().toLocaleString()}
-      </td>
-    </tr>
-  );
-})}
+                    <td className="px-5 py-3">
+                      <StatusBadge status={normalizedStatus} />
+                    </td>
+
+                    <td className="px-5 py-3">
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset",
+                          getPriorityStyle(r.priority)
+                        )}
+                      >
+                        {r.priority || "N/A"}
+                      </span>
+                    </td>
+
+                    <td className="px-5 py-3 text-muted-foreground">
+                      {r.createdAt?.toDate?.().toLocaleString()}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
