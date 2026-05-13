@@ -10,6 +10,7 @@ import { StatusBadge } from "./StatusBadge";
 import { useI18n } from "@/lib/i18n";
 import { getWorker } from "@/lib/mockData";
 import { db } from "@/firebase";
+import { useState } from "react";
 import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import {
@@ -36,6 +37,7 @@ interface Props {
 
 export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
   const { t } = useI18n();
+  const [selectedCategory, setSelectedCategory] = useState("");
 
   if (!report) return null;
 
@@ -76,6 +78,28 @@ export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
       toast.error("Failed to update report status");
     }
   };
+  const isUncategorized =
+  category?.toLowerCase?.().trim() === "uncategorized";
+
+const updateReportCategory = async () => {
+  if (!selectedCategory) {
+    toast.error("Please select a category");
+    return;
+  }
+
+  try {
+    await updateDoc(doc(db, "grievances", report.id), {
+      category: selectedCategory,
+      updatedAt: serverTimestamp(),
+    });
+
+    toast.success(`Category updated to ${selectedCategory}`);
+    onClose();
+  } catch (error) {
+    console.error("Error updating category:", error);
+    toast.error("Failed to update category");
+  }
+};
 
   return (
     <Dialog open={!!report} onOpenChange={(o) => !o && onClose()}>
@@ -127,6 +151,35 @@ export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
             </div>
           </section>
         )}
+        {isUncategorized && (
+  <section className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+    <h4 className="mb-3 text-sm font-semibold text-blue-800">
+      Categorize Report
+    </h4>
+
+    <p className="mb-4 text-sm text-blue-700">
+      This report is currently uncategorized. Please assign it to the correct category.
+    </p>
+
+    <div className="flex flex-col gap-3 sm:flex-row">
+      <select
+        value={selectedCategory}
+        onChange={(e) => setSelectedCategory(e.target.value)}
+        className="h-10 flex-1 rounded-lg border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-primary"
+      >
+        <option value="">Select category</option>
+        <option value="Electricity">Electricity</option>
+        <option value="Water Supply">Water Supply</option>
+        <option value="Sanitation">Sanitation</option>
+        <option value="Roads">Roads</option>
+      </select>
+
+      <Button onClick={updateReportCategory}>
+        Update Category
+      </Button>
+    </div>
+  </section>
+)}
 
         <div className="grid md:grid-cols-2 gap-5 mt-2">
           <div>
