@@ -1,15 +1,16 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
   getDocs,
   serverTimestamp,
+  setDoc,
   updateDoc,
 } from "firebase/firestore";
-import { db } from "@/firebase";
+import { db , auth } from "@/firebase";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 import { useAuth } from "@/lib/auth";
 import { AppSidebar } from "@/components/AppSidebar";
 import { WorkersMap } from "@/components/WorkersMap";
@@ -192,43 +193,48 @@ function WorkersPage() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    try {
-      if (editingWorker) {
-        await updateDoc(doc(db, "field_staff", editingWorker.id), {
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          department: formData.department,
-          lastUpdated: Date.now(),
-          updatedAt: serverTimestamp(),
-        });
-      } else {
-        const docRef = await addDoc(collection(db, "field_staff"), {
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          department: formData.department,
-          designation: "Field Worker",
-          duty_status: true,
-          assignedTask: "",
-          resolvedCount: 0,
-          lastUpdated: Date.now(),
-          createdAt: serverTimestamp(),
-        });
+  try {
+    if (editingWorker) {
+      await updateDoc(doc(db, "field_staff", editingWorker.id), {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        department: formData.department,
+        lastUpdated: Date.now(),
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        formData.email,
+        formData.password
+      );
 
-        await updateDoc(doc(db, "field_staff", docRef.id), {
-          fsid: docRef.id,
-        });
-      }
+      const uid = userCredential.user.uid;
 
-      await fetchWorkers();
-      handleCloseForm();
-    } catch (error) {
-      console.error("Error saving field staff:", error);
+      await setDoc(doc(db, "field_staff", uid), {
+        fsid: uid,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        department: formData.department,
+        designation: "Field Worker",
+        duty_status: true,
+        assignedTask: "",
+        resolvedCount: 0,
+        lastUpdated: Date.now(),
+        createdAt: serverTimestamp(),
+      });
     }
-  };
+
+    await fetchWorkers();
+    handleCloseForm();
+  } catch (error) {
+    console.error("Error saving field staff:", error);
+  }
+};
 
   const handleDelete = async (workerId: string) => {
     const confirmDelete = window.confirm(
