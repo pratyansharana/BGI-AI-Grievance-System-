@@ -75,6 +75,7 @@ function WorkersPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
   const [formData, setFormData] = useState<FormData>(emptyForm);
+  const [viewMode, setViewMode] = useState<"table" | "map">("table");
 
   const [statusFilter, setStatusFilter] = useState<
     "all" | "available" | "assigned" | "off duty"
@@ -339,112 +340,142 @@ function WorkersPage() {
             <option value="off duty">Off Duty ({offDutyCount})</option>
           </select>
         </div>
+            <div className="inline-flex rounded-xl border bg-card p-1 shadow-sm mb-6">
+              <button
+                onClick={() => setViewMode("table")}
+                className={cn(
+                  "rounded-lg px-4 py-2 text-sm font-medium transition",
+                  viewMode === "table"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted"
+                )}
+              >
+                Table
+              </button>
 
-        <div className="mb-8">
-          <WorkersMap workers={filteredWorkers} />
-        </div>
+              <button
+                onClick={() => setViewMode("map")}
+                className={cn(
+                  "rounded-lg px-4 py-2 text-sm font-medium transition",
+                  viewMode === "map"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted"
+                )}
+              >
+                Map
+              </button>
+            </div>
 
-        {loading ? (
-          <div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">
-            Loading field staff...
-          </div>
-        ) : filteredWorkers.length === 0 ? (
-          <div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">
-            No field staff found for this status.
-          </div>
-        ) : (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {filteredWorkers.map((worker) => {
-              const statusText = getStatusText(worker);
+            {viewMode === "map" && (
+              <div className="mb-8 rounded-2xl border bg-card p-4 shadow-sm">
+                <WorkersMap workers={filteredWorkers} />
+              </div>
+            )}
 
-              return (
-                <div
-                  key={worker.id}
-                  className="rounded-2xl border bg-card p-5 shadow-sm transition hover:shadow-md"
-                >
-                  <div className="mb-4 flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                        <UserRound className="h-6 w-6 text-muted-foreground" />
-                      </div>
-
-                      <div>
-                        <h3 className="font-semibold">
-                          {worker.name || "Field Staff"}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          {worker.designation || "Field Worker"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium capitalize ring-1",
-                        getStatusStyle(worker)
-                      )}
-                    >
-                      <span
-                        className={cn("h-2 w-2 rounded-full", getDotColor(worker))}
-                      />
-                      {statusText}
-                    </span>
+            {viewMode === "table" && (
+              <>
+                {loading ? (
+                  <div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">
+                    Loading field staff...
                   </div>
-
-                  <div className="space-y-3 text-sm">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Mail className="h-4 w-4" />
-                      <span>{worker.email || "No email"}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Phone className="h-4 w-4" />
-                      <span>{worker.phone || "No phone number"}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Briefcase className="h-4 w-4" />
-                      <span>{worker.department || "No department"}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <ClipboardList className="h-4 w-4" />
-                      <span>{worker.resolvedCount || 0} reports resolved</span>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <MapPin className="h-4 w-4" />
-                      <span>
-                        {worker.location?.latitude && worker.location?.longitude
-                        ? `${worker.location.latitude}, ${worker.location.longitude}`
-                        : "Location not available"}
-                      </span>
-                    </div>
+                ) : filteredWorkers.length === 0 ? (
+                  <div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">
+                    No field staff found for this status.
                   </div>
+                ) : (
+                  <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                    {filteredWorkers.map((worker) => {
+                      const statusText = getStatusText(worker);
 
-                  <div className="mt-5 flex gap-2">
-                    <button
-                      onClick={() => handleEdit(worker)}
-                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium hover:bg-muted"
-                    >
-                      <Pencil className="h-4 w-4" />
-                      Edit
-                    </button>
+                      return (
+                        <div
+                          key={worker.id}
+                          className="rounded-2xl border bg-card p-5 shadow-sm transition hover:shadow-md"
+                        >
+                          <div className="mb-4 flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                                <UserRound className="h-6 w-6 text-muted-foreground" />
+                              </div>
 
-                    <button
-                      onClick={() => handleDelete(worker.id)}
-                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Delete
-                    </button>
+                              <div>
+                                <h3 className="font-semibold">
+                                  {worker.name || "Field Staff"}
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                  {worker.designation || "Field Worker"}
+                                </p>
+                              </div>
+                            </div>
+
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium capitalize ring-1",
+                                getStatusStyle(worker)
+                              )}
+                            >
+                              <span
+                                className={cn("h-2 w-2 rounded-full", getDotColor(worker))}
+                              />
+                              {statusText}
+                            </span>
+                          </div>
+
+                          <div className="space-y-3 text-sm">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Mail className="h-4 w-4" />
+                              <span>{worker.email || "No email"}</span>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Phone className="h-4 w-4" />
+                              <span>{worker.phone || "No phone number"}</span>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Briefcase className="h-4 w-4" />
+                              <span>{worker.department || "No department"}</span>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <ClipboardList className="h-4 w-4" />
+                              <span>{worker.resolvedCount || 0} reports resolved</span>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <MapPin className="h-4 w-4" />
+                              <span>
+                                {worker.location?.latitude && worker.location?.longitude
+                                  ? `${worker.location.latitude}, ${worker.location.longitude}`
+                                  : "Location not available"}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="mt-5 flex gap-2">
+                            <button
+                              onClick={() => handleEdit(worker)}
+                              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium hover:bg-muted"
+                            >
+                              <Pencil className="h-4 w-4" />
+                              Edit
+                            </button>
+
+                            <button
+                              onClick={() => handleDelete(worker.id)}
+                              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
+                )}
+              </>
+            )}
         {showForm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="w-full max-w-lg rounded-2xl bg-background p-6 shadow-xl">

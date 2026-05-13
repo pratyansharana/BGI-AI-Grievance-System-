@@ -115,6 +115,7 @@ function ReportsPage() {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [search, setSearch] = useState("");
   const [active, setActive] = useState<ReportItem | null>(null);
+  const [viewMode, setViewMode] = useState<"table" | "map">("table");
 
   useEffect(() => {
     const mapped = firestoreReports.map((r) => ({
@@ -225,8 +226,39 @@ function ReportsPage() {
         <h1 className="text-2xl font-bold mt-1">{t("allReports")}</h1>
       </header>
 
-      <MapView />
 
+      <div className="inline-flex rounded-xl border bg-card p-1 shadow-sm mb-6">
+        <button
+          onClick={() => setViewMode("table")}
+          className={cn(
+            "rounded-lg px-4 py-2 text-sm font-medium transition",
+            viewMode === "table"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-muted"
+          )}
+        >
+          Table
+        </button>
+
+        <button
+          onClick={() => setViewMode("map")}
+          className={cn(
+            "rounded-lg px-4 py-2 text-sm font-medium transition",
+            viewMode === "map"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-muted"
+          )}
+        >
+          Map
+        </button>
+      </div>
+
+      {viewMode === "map" && (
+        <div className="rounded-2xl border bg-card p-4 shadow-sm">
+          <MapView />
+        </div>
+      )}
+      {viewMode === "table" && (
       <div className="rounded-2xl bg-card border shadow-(--shadow-soft) overflow-hidden">
         <div className="p-4 border-b bg-card">
           <div className="grid gap-3 xl:grid-cols-[1fr_230px_250px_auto]">
@@ -423,6 +455,7 @@ function ReportsPage() {
           </table>
         </div>
       </div>
+      )}
 
       <ReportDetailDialog
         report={active}
