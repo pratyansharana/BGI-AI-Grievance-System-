@@ -32,22 +32,23 @@ export const Route = createFileRoute("/workers")({
   component: WorkersPage,
 });
 
+type Department = "Electricity" | "Water Supply" | "Sanitation" | "Roads";
+
 type Worker = {
   id: string;
   fsid?: string;
   name: string;
   email: string;
   phone?: string;
-  password?: string;
   department: string;
   designation: string;
   duty_status: boolean;
   assignedTask?: string;
   resolvedCount?: number;
   location?: {
-  latitude: number;
-  longitude: number;
-};
+    latitude: number;
+    longitude: number;
+  };
   lastUpdated?: number;
 };
 
@@ -58,6 +59,13 @@ type FormData = {
   department: string;
   password: string;
 };
+
+const DEPARTMENTS: Department[] = [
+  "Electricity",
+  "Water Supply",
+  "Sanitation",
+  "Roads",
+];
 
 const emptyForm: FormData = {
   name: "",
@@ -172,7 +180,7 @@ function WorkersPage() {
         ? worker.phone
         : `+91 ${worker.phone || ""}`,
       department: worker.department || "",
-      password: worker.password || "",
+      password: "",
     });
     setShowForm(true);
   };
@@ -193,7 +201,6 @@ function WorkersPage() {
           email: formData.email,
           phone: formData.phone,
           department: formData.department,
-          password: formData.password,
           lastUpdated: Date.now(),
           updatedAt: serverTimestamp(),
         });
@@ -202,16 +209,12 @@ function WorkersPage() {
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
-          password: formData.password,
-
           department: formData.department,
           designation: "Field Worker",
           duty_status: true,
           assignedTask: "",
           resolvedCount: 0,
-          location: [],
           lastUpdated: Date.now(),
-
           createdAt: serverTimestamp(),
         });
 
@@ -243,7 +246,8 @@ function WorkersPage() {
   };
 
   const availableCount = workers.filter(
-    (w) => w.duty_status === true && (!w.assignedTask || w.assignedTask.trim() === "")
+    (w) =>
+      w.duty_status === true && (!w.assignedTask || w.assignedTask.trim() === "")
   ).length;
 
   const assignedCount = workers.filter(
@@ -340,142 +344,148 @@ function WorkersPage() {
             <option value="off duty">Off Duty ({offDutyCount})</option>
           </select>
         </div>
-            <div className="inline-flex rounded-xl border bg-card p-1 shadow-sm mb-6">
-              <button
-                onClick={() => setViewMode("table")}
-                className={cn(
-                  "rounded-lg px-4 py-2 text-sm font-medium transition",
-                  viewMode === "table"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted"
-                )}
-              >
-                Table
-              </button>
 
-              <button
-                onClick={() => setViewMode("map")}
-                className={cn(
-                  "rounded-lg px-4 py-2 text-sm font-medium transition",
-                  viewMode === "map"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted"
-                )}
-              >
-                Map
-              </button>
-            </div>
-
-            {viewMode === "map" && (
-              <div className="mb-8 rounded-2xl border bg-card p-4 shadow-sm">
-                <WorkersMap workers={filteredWorkers} />
-              </div>
+        <div className="mb-6 inline-flex rounded-xl border bg-card p-1 shadow-sm">
+          <button
+            onClick={() => setViewMode("table")}
+            className={cn(
+              "rounded-lg px-4 py-2 text-sm font-medium transition",
+              viewMode === "table"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-muted"
             )}
+          >
+            Table
+          </button>
 
-            {viewMode === "table" && (
-              <>
-                {loading ? (
-                  <div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">
-                    Loading field staff...
-                  </div>
-                ) : filteredWorkers.length === 0 ? (
-                  <div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">
-                    No field staff found for this status.
-                  </div>
-                ) : (
-                  <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                    {filteredWorkers.map((worker) => {
-                      const statusText = getStatusText(worker);
+          <button
+            onClick={() => setViewMode("map")}
+            className={cn(
+              "rounded-lg px-4 py-2 text-sm font-medium transition",
+              viewMode === "map"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-muted"
+            )}
+          >
+            Map
+          </button>
+        </div>
 
-                      return (
-                        <div
-                          key={worker.id}
-                          className="rounded-2xl border bg-card p-5 shadow-sm transition hover:shadow-md"
-                        >
-                          <div className="mb-4 flex items-start justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                                <UserRound className="h-6 w-6 text-muted-foreground" />
-                              </div>
+        {viewMode === "map" && (
+          <div className="mb-8 rounded-2xl border bg-card p-4 shadow-sm">
+            <WorkersMap workers={filteredWorkers} />
+          </div>
+        )}
 
-                              <div>
-                                <h3 className="font-semibold">
-                                  {worker.name || "Field Staff"}
-                                </h3>
-                                <p className="text-sm text-muted-foreground">
-                                  {worker.designation || "Field Worker"}
-                                </p>
-                              </div>
-                            </div>
+        {viewMode === "table" && (
+          <>
+            {loading ? (
+              <div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">
+                Loading field staff...
+              </div>
+            ) : filteredWorkers.length === 0 ? (
+              <div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">
+                No field staff found for this status.
+              </div>
+            ) : (
+              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                {filteredWorkers.map((worker) => {
+                  const statusText = getStatusText(worker);
 
-                            <span
-                              className={cn(
-                                "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium capitalize ring-1",
-                                getStatusStyle(worker)
-                              )}
-                            >
-                              <span
-                                className={cn("h-2 w-2 rounded-full", getDotColor(worker))}
-                              />
-                              {statusText}
-                            </span>
+                  return (
+                    <div
+                      key={worker.id}
+                      className="rounded-2xl border bg-card p-5 shadow-sm transition hover:shadow-md"
+                    >
+                      <div className="mb-4 flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                            <UserRound className="h-6 w-6 text-muted-foreground" />
                           </div>
 
-                          <div className="space-y-3 text-sm">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <Mail className="h-4 w-4" />
-                              <span>{worker.email || "No email"}</span>
-                            </div>
-
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <Phone className="h-4 w-4" />
-                              <span>{worker.phone || "No phone number"}</span>
-                            </div>
-
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <Briefcase className="h-4 w-4" />
-                              <span>{worker.department || "No department"}</span>
-                            </div>
-
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <ClipboardList className="h-4 w-4" />
-                              <span>{worker.resolvedCount || 0} reports resolved</span>
-                            </div>
-
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <MapPin className="h-4 w-4" />
-                              <span>
-                                {worker.location?.latitude && worker.location?.longitude
-                                  ? `${worker.location.latitude}, ${worker.location.longitude}`
-                                  : "Location not available"}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="mt-5 flex gap-2">
-                            <button
-                              onClick={() => handleEdit(worker)}
-                              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium hover:bg-muted"
-                            >
-                              <Pencil className="h-4 w-4" />
-                              Edit
-                            </button>
-
-                            <button
-                              onClick={() => handleDelete(worker.id)}
-                              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              Delete
-                            </button>
+                          <div>
+                            <h3 className="font-semibold">
+                              {worker.name || "Field Staff"}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              {worker.designation || "Field Worker"}
+                            </p>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
+
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium capitalize ring-1",
+                            getStatusStyle(worker)
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "h-2 w-2 rounded-full",
+                              getDotColor(worker)
+                            )}
+                          />
+                          {statusText}
+                        </span>
+                      </div>
+
+                      <div className="space-y-3 text-sm">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Mail className="h-4 w-4" />
+                          <span>{worker.email || "No email"}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Phone className="h-4 w-4" />
+                          <span>{worker.phone || "No phone number"}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Briefcase className="h-4 w-4" />
+                          <span>{worker.department || "No department"}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <ClipboardList className="h-4 w-4" />
+                          <span>{worker.resolvedCount || 0} reports resolved</span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <MapPin className="h-4 w-4" />
+                          <span>
+                            {worker.location?.latitude &&
+                            worker.location?.longitude
+                              ? `${worker.location.latitude}, ${worker.location.longitude}`
+                              : "Location not available"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 flex gap-2">
+                        <button
+                          onClick={() => handleEdit(worker)}
+                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium hover:bg-muted"
+                        >
+                          <Pencil className="h-4 w-4" />
+                          Edit
+                        </button>
+
+                        <button
+                          onClick={() => handleDelete(worker.id)}
+                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
+          </>
+        )}
+
         {showForm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="w-full max-w-lg rounded-2xl bg-background p-6 shadow-xl">
@@ -555,15 +565,14 @@ function WorkersPage() {
                       }
                       placeholder="Create password"
                       className="w-full rounded-xl border bg-background py-2 pl-10 pr-3 outline-none focus:ring-2 focus:ring-primary"
-                      required
+                      required={!editingWorker}
                     />
                   </div>
                 </div>
 
                 <div>
                   <label className="text-sm font-medium">Department</label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.department}
                     onChange={(e) =>
                       setFormData({
@@ -571,10 +580,16 @@ function WorkersPage() {
                         department: e.target.value,
                       })
                     }
-                    placeholder="Enter department"
                     className="mt-1 w-full rounded-xl border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-primary"
                     required
-                  />
+                  >
+                    <option value="">Select department</option>
+                    {DEPARTMENTS.map((department) => (
+                      <option key={department} value={department}>
+                        {department}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="flex gap-3 pt-3">
