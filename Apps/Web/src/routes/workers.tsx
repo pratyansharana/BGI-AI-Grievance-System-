@@ -545,55 +545,47 @@ function WorkersPage() {
           </div>
         )}
 
-        <div className="mb-6 flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="font-semibold">Field Staff Status Filter</h2>
-            <p className="text-sm text-muted-foreground">
-              Filter verified field staff cards and map markers by status.
-            </p>
-          </div>
-
-          <select
-            value={statusFilter}
-            onChange={(e) =>
-              setStatusFilter(
-                e.target.value as "all" | "available" | "assigned" | "off duty"
-              )
-            }
-            className="rounded-xl border bg-background px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="all">All Field Staff ({approvedWorkers.length})</option>
-            <option value="available">Available ({availableCount})</option>
-            <option value="assigned">Assigned ({assignedCount})</option>
-            <option value="off duty">Off Duty ({offDutyCount})</option>
-          </select>
-        </div>
-
-        <div className="mb-6 inline-flex rounded-xl border bg-card p-1 shadow-sm">
-          <button
+        <div className="mb-6 flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+          <div className="inline-flex w-fit rounded-xl border bg-background p-1 shadow-sm">
+            <button
             onClick={() => setViewMode("table")}
             className={cn(
-              "rounded-lg px-4 py-2 text-sm font-medium transition",
+              "rounded-lg px-5 py-2 text-sm font-medium transition",
               viewMode === "table"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted"
-            )}
-          >
-            Table
-          </button>
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-muted")}
+              >
+                Table
+                </button>
+                
+                <button
+                onClick={() => setViewMode("map")}
+                className={cn(
+                  "rounded-lg px-5 py-2 text-sm font-medium transition",
+                  viewMode === "map"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted"
+                )}
+                >
+                  Map
+                  </button>
+                  </div>
 
-          <button
-            onClick={() => setViewMode("map")}
-            className={cn(
-              "rounded-lg px-4 py-2 text-sm font-medium transition",
-              viewMode === "map"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted"
-            )}
-          >
-            Map
-          </button>
-        </div>
+  <select
+    value={statusFilter}
+    onChange={(e) =>
+      setStatusFilter(
+        e.target.value as "all" | "available" | "assigned" | "off duty"
+      )
+    }
+    className="h-11 rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary"
+  >
+    <option value="all">All Field Staff ({approvedWorkers.length})</option>
+    <option value="available">Available ({availableCount})</option>
+    <option value="assigned">Assigned ({assignedCount})</option>
+    <option value="off duty">Off Duty ({offDutyCount})</option>
+  </select>
+</div>
 
         {viewMode === "map" && (
           <div className="mb-8 rounded-2xl border bg-card p-4 shadow-sm">
