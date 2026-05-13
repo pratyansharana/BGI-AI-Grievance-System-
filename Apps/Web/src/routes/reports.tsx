@@ -2,6 +2,8 @@ import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useI18n } from "@/lib/i18n";
+import { deleteDoc, doc } from "firebase/firestore";
+import { db } from "@/firebase";
 import { useReports } from "@/hooks/useReports";
 type ReportStatus =
   | "pending"
@@ -46,10 +48,11 @@ const FILTERS: ("all" | ReportStatus)[] = ["all", "pending", "assigned", "resolv
 function ReportsPage() {
   const { t } = useI18n();
   const { reports: firestoreReports } = useReports();
+  const [selectedReports, setSelectedReports] = useState<string[]>([]);
   const [list, setList] = useState<any[]>([]);
   const [filter, setFilter] = useState<"all" | ReportStatus>("all");
   const [search, setSearch] = useState("");
-  const [active, setActive] = useState<Report | null>(null);
+  const [active, setActive] = useState<any | null>(null);
   useEffect(() => {
     const mapped = firestoreReports.map((r) => ({
       ...r,
@@ -84,6 +87,49 @@ function ReportsPage() {
     setList((l) => l.filter((r) => r.id !== id));
     toast.success(t("reportDeleted"));
   };
+  const toggleSelect = (id: string) => {
+    setSelectedReports((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedReports.length === filtered.length) {
+      setSelectedReports([]);
+    } else {
+      setSelectedReports(filtered.map((r) => r.id));
+    }
+  };
+
+  const deleteSelectedReports = async () => {
+    const idsToDelete = selectedReports.filter((id) =>
+      list.some((r) => r.id === id)
+    );
+
+    if (idsToDelete.length === 0) {
+      setSelectedReports([]);
+      return;
+    }
+
+    const confirmDelete = window.confirm(
+      `Delete ${idsToDelete.length} selected reports?`
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      await Promise.all(
+        idsToDelete.map((id) => deleteDoc(doc(db, "grievances", id)))
+      );
+
+      setList((prev) => prev.filter((r) => !idsToDelete.includes(r.id)));
+      setSelectedReports([]);
+      toast.success("Selected reports deleted");
+    } catch (error) {
+      console.error("Error deleting reports:", error);
+      toast.error("Failed to delete selected reports");
+    }
+  };
 
   return (
     <div className="p-6 lg:p-8 space-y-6 max-w-[1500px] mx-auto">
@@ -105,7 +151,26 @@ function ReportsPage() {
               className="pl-9 h-10"
             />
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={toggleSelectAll}
+              disabled={filtered.length === 0}
+              className="px-3 py-1.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground hover:bg-secondary/70 disabled:opacity-50"
+            >
+              {selectedReports.length === filtered.length && filtered.length > 0
+                ? "Unselect All"
+                : "Select All"}
+            </button>
+
+            {selectedReports.filter((id) => filtered.some((r) => r.id === id)).length > 0 && (
+              <button
+                onClick={deleteSelectedReports}
+                className="px-3 py-1.5 rounded-full text-xs font-medium bg-red-600 text-white hover:bg-red-700"
+              >
+                Delete Selected ({selectedReports.filter((id) => filtered.some((r) => r.id === id)).length})
+              </button>
+            )}
+
             {FILTERS.map((f) => (
               <button
                 key={f}
@@ -127,7 +192,7 @@ function ReportsPage() {
           <table className="w-full text-sm">
             <thead className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
-                <th className="text-left px-5 py-3">ID</th>
+                <th className="text-left px-5 py-3">Select</th>
                 <th className="text-left px-5 py-3">{t("user")}</th>
                 <th className="text-left px-5 py-3">{t("image")}</th>
                 <th className="text-left px-5 py-3">{t("location")}</th>
@@ -146,6 +211,15 @@ function ReportsPage() {
                     i % 2 && "bg-secondary/10",
                   )}
                 >
+                  <td className="px-5 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedReports.includes(r.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={() => toggleSelect(r.id)}
+                      className="h-4 w-4 cursor-pointer"
+                    />
+                  </td>
                   <td className="px-5 py-3 font-mono text-xs font-semibold">{r.id}</td>
                   <td className="px-5 py-3">{r.userId}</td>
                   <td className="px-5 py-3">
@@ -171,7 +245,7 @@ function ReportsPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-muted-foreground text-sm">
+                  <td colSpan={8} className="text-center py-12 text-muted-foreground text-sm">
                     No reports match your filters.
                   </td>
                 </tr>

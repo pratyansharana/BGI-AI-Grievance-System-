@@ -3,6 +3,7 @@ import { LayoutDashboard, FileText, Users, LogOut, Languages, ShieldCheck } from
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import logo from "@/assets/lokawaazlogo.png";
 import { Button } from "@/components/ui/button";
 
 export function AppSidebar() {
@@ -24,8 +25,12 @@ export function AppSidebar() {
     <aside className="hidden md:flex sticky top-0 h-screen w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
       <div className="px-5 py-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="size-10 rounded-xl bg-[var(--gradient-brand)] flex items-center justify-center shadow-(--shadow-elev)">
-            <ShieldCheck className="size-5 text-white" />
+          <div className="size-10 rounded-xl bg-white flex items-center justify-center shadow-(--shadow-elev) overflow-hidden p-1">
+            <img
+              src={logo}
+              alt="LokAwaaz Logo"
+              className="h-full w-full object-contain"
+            />
           </div>
           <div>
             <p className="font-bold leading-tight">{t("appName")}</p>

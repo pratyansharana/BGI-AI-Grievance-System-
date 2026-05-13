@@ -85,7 +85,7 @@ function DashboardRoute() {
 }
 
 function DashboardPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { reports, loading } = useReports();
 
   const counts = useMemo(() => {
@@ -153,15 +153,8 @@ function DashboardPage() {
       tone: "var(--color-status-resolved)",
     },
     {
-      key: "rejected" as const,
-      label: t("rejected"),
-      val: counts.rejected,
-      icon: XCircle,
-      tone: "var(--color-status-rejected)",
-    },
-    {
       key: "manual_review_required" as const,
-      label: "Manual Review Required",
+      label: lang === "hi" ? "मैनुअल समीक्षा आवश्यक" : "Manual Review Required",
       val: counts.manual_review_required,
       icon: AlertTriangle,
       tone: "#a855f7",
@@ -181,7 +174,7 @@ function DashboardPage() {
         <h1 className="text-2xl font-bold mt-1">{t("dashboard")}</h1>
       </header>
 
-      <section className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+      <section className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-5">
         {cards.map((c) => (
           <div
             key={c.key}
@@ -197,7 +190,6 @@ function DashboardPage() {
               >
                 <c.icon className="size-5" />
               </div>
-              <ArrowUpRight className="size-4 text-muted-foreground group-hover:text-primary transition" />
             </div>
 
             <p className="mt-4 text-3xl font-bold tracking-tight">{c.val}</p>
