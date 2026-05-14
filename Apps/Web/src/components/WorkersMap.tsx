@@ -11,15 +11,25 @@ type FieldStaff = {
   duty_status: boolean;
   assignedTask?: string;
   resolvedCount?: number;
+  workerType?: "Freelancer" | "Municipality Staff";
+  verificationStatus?: "Pending" | "Approved" | "Rejected";
   location?: {
-    latitude: number;
-    longitude: number;
+    latitude?: number;
+    longitude?: number;
+    lat?: number;
+    lng?: number;
   };
 };
 
 type WorkersMapProps = {
   workers: FieldStaff[];
 };
+
+const getLat = (worker: FieldStaff) =>
+  worker.location?.latitude ?? worker.location?.lat;
+
+const getLng = (worker: FieldStaff) =>
+  worker.location?.longitude ?? worker.location?.lng;
 
 const getWorkerStatus = (worker: FieldStaff) => {
   if (worker.assignedTask && worker.assignedTask.trim() !== "") {
@@ -81,15 +91,19 @@ export function WorkersMap({ workers }: WorkersMapProps) {
     markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = [];
 
-    const fieldStaffWithLocation = workers.filter(
-      (worker) =>
-        typeof worker.location?.latitude === "number" &&
-        typeof worker.location?.longitude === "number"
-    );
+    const fieldStaffWithLocation = workers.filter((worker) => {
+      const lat = getLat(worker);
+      const lng = getLng(worker);
+
+      return typeof lat === "number" && typeof lng === "number";
+    });
 
     fieldStaffWithLocation.forEach((worker) => {
+      const lat = getLat(worker)!;
+      const lng = getLng(worker)!;
       const color = getStatusColor(worker);
       const statusText = getStatusText(worker);
+      const workerType = worker.workerType || "Municipality Staff";
 
       const markerElement = document.createElement("div");
       markerElement.style.width = "28px";
@@ -123,17 +137,17 @@ export function WorkersMap({ workers }: WorkersMapProps) {
         closeButton: true,
         closeOnClick: true,
       }).setHTML(`
-        <div style="width: 240px; padding: 12px;">
+        <div style="width: 250px; padding: 12px;">
           <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
             <div style="
               width: 42px;
               height: 42px;
               border-radius: 9999px;
-              background: #dbeafe;
+              background: ${workerType === "Freelancer" ? "#f3e8ff" : "#dbeafe"};
               display: flex;
               align-items: center;
               justify-content: center;
-              color: #2563eb;
+              color: ${workerType === "Freelancer" ? "#7e22ce" : "#2563eb"};
               font-weight: 700;
               font-size: 18px;
             ">
@@ -148,6 +162,19 @@ export function WorkersMap({ workers }: WorkersMapProps) {
                 ${worker.name || "Field Staff"}
               </h3>
             </div>
+          </div>
+
+          <div style="
+            display: inline-flex;
+            padding: 4px 8px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: ${workerType === "Freelancer" ? "#7e22ce" : "#1d4ed8"};
+            background: ${workerType === "Freelancer" ? "#f3e8ff" : "#dbeafe"};
+          ">
+            ${workerType}
           </div>
 
           <div style="font-size: 13px; color: #475569; line-height: 1.6;">
@@ -173,11 +200,7 @@ export function WorkersMap({ workers }: WorkersMapProps) {
               worker.resolvedCount ?? 0
             }</p>
 
-            <p style="margin: 0;"><strong>Location:</strong> ${
-              worker.location
-                ? `${worker.location.latitude}, ${worker.location.longitude}`
-                : "Not available"
-            }</p>
+            <p style="margin: 0;"><strong>Location:</strong> ${lat}, ${lng}</p>
           </div>
         </div>
       `);
@@ -186,7 +209,7 @@ export function WorkersMap({ workers }: WorkersMapProps) {
         element: markerElement,
         anchor: "center",
       })
-        .setLngLat([worker.location!.longitude, worker.location!.latitude])
+        .setLngLat([lng, lat])
         .setPopup(popup)
         .addTo(mapRef.current!);
 
@@ -199,7 +222,8 @@ export function WorkersMap({ workers }: WorkersMapProps) {
       <div className="border-b px-5 py-4">
         <h3 className="font-semibold">Field Staff Live Map</h3>
         <p className="text-sm text-muted-foreground">
-          Field staff locations based on live Firebase coordinates
+          Verified municipality staff and approved freelancers based on live
+          Firebase coordinates
         </p>
       </div>
 

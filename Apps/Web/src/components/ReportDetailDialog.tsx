@@ -177,12 +177,11 @@ export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
           <div className="flex items-center justify-between gap-4 pr-6">
             <div>
               <DialogTitle className="text-xl">
-                {report.id} · {report.category}
-              </DialogTitle>
-
-              <DialogDescription className="mt-1">
-                {report.description}
-              </DialogDescription>
+                {category !== "N/A" ? category : "Civic Report"}
+                </DialogTitle>
+                <DialogDescription className="mt-1">
+                  Report details, status, location, assignment, and verification proof.
+                  </DialogDescription>
             </div>
 
             <StatusBadge status={report.status} />
