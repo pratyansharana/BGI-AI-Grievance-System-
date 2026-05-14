@@ -55,10 +55,7 @@ const getStatusFilters = (
   { label: lang === "hi" ? "सौंपी गई" : "Assigned", value: "assigned" },
   { label: lang === "hi" ? "हल" : "Resolved", value: "resolved" },
   { label: lang === "hi" ? "अस्वीकृत" : "Rejected", value: "rejected" },
-  {
-    label: lang === "hi" ? "मैनुअल समीक्षा आवश्यक" : "Manual Review Required",
-    value: "manual_review_required",
-  },
+
 ];
 
 const getCategoryFilters = (
@@ -181,7 +178,7 @@ function ReportsPage() {
   const [list, setList] = useState<ReportItem[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("pending");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
-  const [prioritySort, setPrioritySort] = useState<PrioritySort>("desc");
+  const [prioritySort, setPrioritySort] = useState<PrioritySort | null>(null);
   const [search, setSearch] = useState("");
   const [active, setActive] = useState<ReportItem | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "map">("table");
@@ -223,13 +220,17 @@ function ReportsPage() {
     });
 
     return [...filteredList].sort((a, b) => {
-      const aPriority = getPriorityValue(a.priority);
-      const bPriority = getPriorityValue(b.priority);
+  if (!prioritySort) {
+    return +new Date(b.createdAt) - +new Date(a.createdAt);
+  }
 
-      return prioritySort === "desc"
-        ? bPriority - aPriority
-        : aPriority - bPriority;
-    });
+  const aPriority = getPriorityValue(a.priority);
+  const bPriority = getPriorityValue(b.priority);
+
+  return prioritySort === "desc"
+    ? bPriority - aPriority
+    : aPriority - bPriority;
+});
   }, [list, statusFilter, categoryFilter, prioritySort, search]);
 
   const selectedVisibleCount = selectedReports.filter((id) =>
@@ -408,10 +409,15 @@ function ReportsPage() {
                   <button
                     onClick={() =>
                       setPrioritySort((prev) =>
-                        prev === "desc" ? "asc" : "desc"
-                      )
-                    }
-                    className="h-11 w-11 shrink-0 rounded-xl border bg-background flex items-center justify-center transition hover:bg-secondary/50"
+                        prev === null ? "desc" : prev === "desc" ? "asc" : null
+                  )
+                }
+                    className={cn(
+  "h-11 w-11 shrink-0 rounded-xl border flex items-center justify-center transition",
+  prioritySort
+    ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
+    : "bg-background hover:bg-secondary/50"
+)}
                     title={
                       prioritySort === "desc"
                         ? lang === "hi"
@@ -422,11 +428,11 @@ function ReportsPage() {
                           : "Priority: Low to High"
                     }
                   >
-                    {prioritySort === "desc" ? (
-                      <ArrowDownWideNarrow className="size-4" />
-                    ) : (
+                    {prioritySort === "asc" ? (
                       <ArrowUpNarrowWide className="size-4" />
-                    )}
+                     ) : (
+                     <ArrowDownWideNarrow className="size-4" />
+                     )}
                   </button>
 
                   <button

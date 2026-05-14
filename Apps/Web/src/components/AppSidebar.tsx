@@ -7,7 +7,10 @@ import {
   Languages,
   Trophy,
 } from "lucide-react";
+import { collection, onSnapshot } from "firebase/firestore";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { db } from "@/firebase";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/lokawaazlogo.png";
@@ -18,9 +21,31 @@ export function AppSidebar() {
   const { logout, email } = useAuth();
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const [pendingVerificationCount, setPendingVerificationCount] = useState(0);
 
   const isWorkersSection =
     path === "/workers" || path === "/workers-leaderboard";
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "field_staff"), (snapshot) => {
+      let count = 0;
+
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+
+        if (
+          data.workerType === "Freelancer" &&
+          data.verificationStatus === "Pending"
+        ) {
+          count++;
+        }
+      });
+
+      setPendingVerificationCount(count);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const items = [
     { to: "/", label: t("dashboard"), icon: LayoutDashboard, exact: true },
@@ -36,11 +61,18 @@ export function AppSidebar() {
       <div className="px-5 py-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
           <div className="size-10 rounded-xl bg-white flex items-center justify-center shadow-(--shadow-elev) overflow-hidden p-1">
-            <img src={logo} alt="LokAwaaz Logo" className="h-full w-full object-contain" />
+            <img
+              src={logo}
+              alt="LokAwaaz Logo"
+              className="h-full w-full object-contain"
+            />
           </div>
+
           <div>
             <p className="font-bold leading-tight">{t("appName")}</p>
-            <p className="text-[11px] text-sidebar-foreground/60">{t("portal")}</p>
+            <p className="text-[11px] text-sidebar-foreground/60">
+              {t("portal")}
+            </p>
           </div>
         </div>
       </div>
@@ -64,7 +96,16 @@ export function AppSidebar() {
                 )}
               >
                 <it.icon className="size-4" />
-                {it.label}
+
+                <span className="flex flex-1 items-center gap-2">
+                  {it.label}
+
+                  {it.to === "/workers" && pendingVerificationCount > 0 && (
+                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-yellow-400 px-1.5 text-[10px] font-bold text-black shadow-sm">
+                      {pendingVerificationCount}
+                    </span>
+                  )}
+                </span>
               </Link>
 
               {it.to === "/workers" && isWorkersSection && (
@@ -91,6 +132,7 @@ export function AppSidebar() {
       <div className="px-3 py-4 border-t border-sidebar-border space-y-3">
         <div className="flex items-center gap-2 rounded-lg bg-sidebar-accent p-1">
           <Languages className="size-4 ml-2 text-sidebar-foreground/70" />
+
           {(["en", "hi"] as const).map((l) => (
             <button
               key={l}

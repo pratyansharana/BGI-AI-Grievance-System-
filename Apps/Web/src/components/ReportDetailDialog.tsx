@@ -188,37 +188,7 @@ export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
           </div>
         </DialogHeader>
 
-        {isManualReview && (
-          <section className="mt-4 rounded-xl border border-purple-200 bg-purple-50 p-4">
-            <h4 className="mb-3 text-sm font-semibold text-purple-800">
-              Manual Review Required
-            </h4>
-
-            <p className="mb-4 text-sm text-purple-700">
-              Review this report and choose whether it should be marked as
-              resolved or sent back to pending.
-            </p>
-
-            <div className="flex flex-wrap gap-3">
-              <Button
-                onClick={() => updateReportStatus("Resolved")}
-                className="bg-green-600 text-white hover:bg-green-700"
-              >
-                <CheckCircle2 className="size-4" />
-                Resolved
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => updateReportStatus("Pending")}
-                className="border-yellow-300 text-yellow-700 hover:bg-yellow-50"
-              >
-                <Clock className="size-4" />
-                Pending
-              </Button>
-            </div>
-          </section>
-        )}
+        
 
         {isUncategorized && (
           <section className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">

@@ -81,6 +81,30 @@ function normalizeCategory(category?: string): CategoryFilter {
   return "Uncategorized";
 }
 
+function getCategoryLabel(category: string, lang: string) {
+  if (lang !== "hi") return category;
+
+  if (category === "Electricity") return "बिजली";
+  if (category === "Water Supply") return "जल आपूर्ति";
+  if (category === "Sanitation") return "स्वच्छता";
+  if (category === "Roads") return "सड़कें";
+  if (category === "Uncategorized") return "अवर्गीकृत";
+
+  return category;
+}
+
+function getPriorityLabel(priority?: string, lang?: string) {
+  const p = priority?.toLowerCase().trim();
+
+  if (lang !== "hi") return priority || "N/A";
+
+  if (p === "high") return "उच्च";
+  if (p === "medium") return "मध्यम";
+  if (p === "low") return "निम्न";
+
+  return "N/A";
+}
+
 function getPriorityStyle(priority?: string) {
   const p = priority?.toLowerCase().trim();
 
@@ -91,7 +115,15 @@ function getPriorityStyle(priority?: string) {
   return "bg-secondary text-secondary-foreground ring-border";
 }
 
-function getStatusLabel(status: ReportStatus) {
+function getStatusLabel(status: ReportStatus, lang: string) {
+  if (lang === "hi") {
+    if (status === "pending") return "अनसुलझी";
+    if (status === "assigned") return "सौंपी गई";
+    if (status === "resolved") return "हल";
+    if (status === "rejected") return "अस्वीकृत";
+    if (status === "manual_review_required") return "मैनुअल समीक्षा आवश्यक";
+  }
+
   if (status === "manual_review_required") return "Manual Review Required";
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
@@ -123,11 +155,18 @@ function DashboardPage() {
       resolved: 0,
       rejected: 0,
       manual_review_required: 0,
+      uncategorized: 0,
     };
 
     reports.forEach((r) => {
       const status = normalizeStatus(r.status);
+      const category = normalizeCategory(r.category);
+
       c[status] += 1;
+
+      if (category === "Uncategorized") {
+        c.uncategorized += 1;
+      }
     });
 
     return { ...c, total: reports.length };
@@ -142,7 +181,7 @@ function DashboardPage() {
       "manual_review_required",
     ] as ReportStatus[]
   ).map((s) => ({
-    name: getStatusLabel(s),
+    name: getStatusLabel(s, lang),
     value: counts[s],
     status: s,
   }));
@@ -185,9 +224,9 @@ function DashboardPage() {
       tone: "var(--color-status-resolved)",
     },
     {
-      key: "manual_review_required" as const,
-      label: lang === "hi" ? "मैनुअल समीक्षा आवश्यक" : "Manual Review Required",
-      val: counts.manual_review_required,
+      key: "uncategorized" as const,
+      label: lang === "hi" ? "मैनुअल वर्गीकरण" : "Manual Categorization",
+      val: counts.uncategorized,
       icon: AlertTriangle,
       tone: "#a855f7",
     },
@@ -233,7 +272,9 @@ function DashboardPage() {
       <section className="grid lg:grid-cols-3 gap-6">
         <div className="rounded-2xl bg-card border shadow-(--shadow-soft) p-5 lg:col-span-1">
           <h3 className="font-semibold mb-1">{t("distribution")}</h3>
-          <p className="text-xs text-muted-foreground mb-4">By status</p>
+          <p className="text-xs text-muted-foreground mb-4">
+            {lang === "hi" ? "स्थिति के अनुसार" : "By status"}
+          </p>
 
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
@@ -291,11 +332,11 @@ function DashboardPage() {
                 <th className="text-left px-5 py-3">{t("location")}</th>
                 <th className="text-left px-5 py-3">
                   {lang === "hi" ? "श्रेणी" : "Category"}
-                  </th>
+                </th>
                 <th className="text-left px-5 py-3">{t("status")}</th>
                 <th className="text-left px-5 py-3">
                   {lang === "hi" ? "प्राथमिकता" : "Priority"}
-                  </th>
+                </th>
                 <th className="text-left px-5 py-3">{t("dateTime")}</th>
               </tr>
             </thead>
@@ -332,7 +373,7 @@ function DashboardPage() {
 
                     <td className="px-5 py-3">
                       <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">
-                        {normalizedCategory}
+                        {getCategoryLabel(normalizedCategory, lang)}
                       </span>
                     </td>
 
@@ -347,7 +388,7 @@ function DashboardPage() {
                           getPriorityStyle(r.priority)
                         )}
                       >
-                        {r.priority || "N/A"}
+                        {getPriorityLabel(r.priority, lang)}
                       </span>
                     </td>
 
