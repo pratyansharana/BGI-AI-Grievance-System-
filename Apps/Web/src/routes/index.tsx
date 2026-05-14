@@ -103,7 +103,7 @@ function DashboardRoute() {
   if (!isAuthed) return <Navigate to="/login" />;
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-screen flex bg-[linear-gradient(180deg,rgba(255,153,51,0.08)_0%,rgba(255,255,255,0.96)_48%,rgba(19,136,8,0.08)_100%)]">
       <AppSidebar />
       <main className="flex-1 h-screen overflow-y-auto overflow-x-hidden">
         <DashboardPage />

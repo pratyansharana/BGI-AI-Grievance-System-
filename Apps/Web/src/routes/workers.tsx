@@ -353,7 +353,7 @@ function WorkersPage() {
           : approvedWorkers.filter((w) => w.duty_status === false);
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-[linear-gradient(180deg,rgba(255,153,51,0.08)_0%,rgba(255,255,255,0.96)_48%,rgba(19,136,8,0.08)_100%)]">
       <AppSidebar />
 
       <main className="flex-1 h-screen overflow-y-auto overflow-x-hidden p-6 lg:p-8">
@@ -375,7 +375,7 @@ function WorkersPage() {
           </button>
         </div>
 
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="rounded-2xl border bg-card p-5 shadow-sm transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
             <p className="text-sm text-muted-foreground">Total Field Staff</p>
             <p className="mt-2 text-3xl font-bold">{approvedWorkers.length}</p>
@@ -402,7 +402,7 @@ function WorkersPage() {
             </p>
           </div>
 
-          <div className="rounded-2xl border bg-card p-5 shadow-sm">
+          <div className="rounded-2xl border bg-card p-5 shadow-sm transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
             <p className="text-sm text-muted-foreground">Pending Verification</p>
             <p className="mt-2 text-3xl font-bold text-yellow-600">
               {pendingFreelancers.length}
