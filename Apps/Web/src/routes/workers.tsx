@@ -97,6 +97,7 @@ function WorkersPage() {
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
   const [formData, setFormData] = useState<FormData>(emptyForm);
   const [viewMode, setViewMode] = useState<"table" | "map">("table");
+  const [showRejectedBanner, setShowRejectedBanner] = useState(false);
 
   const [statusFilter, setStatusFilter] = useState<
     "all" | "available" | "assigned" | "off duty"
@@ -304,6 +305,11 @@ function WorkersPage() {
       });
 
       await fetchWorkers();
+      setShowRejectedBanner(true);
+
+        setTimeout(() => {
+          setShowRejectedBanner(false);
+        }, 5000);
     } catch (error) {
       console.error("Error rejecting freelancer:", error);
     }
@@ -537,7 +543,7 @@ function WorkersPage() {
           </section>
         )}
 
-        {rejectedFreelancers.length > 0 && (
+        {showRejectedBanner && (
           <div className="mb-6 rounded-2xl border border-red-100 bg-red-50 px-5 py-3 text-sm text-red-700">
             {rejectedFreelancers.length} freelancer request
             {rejectedFreelancers.length > 1 ? "s are" : " is"} rejected and
@@ -644,7 +650,7 @@ function WorkersPage() {
 
                         <span
                           className={cn(
-                            "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium capitalize ring-1",
+                            "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium capitalize whitespeace-nowrap ring-1",
                             getStatusStyle(worker)
                           )}
                         >
