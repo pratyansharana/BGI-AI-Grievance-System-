@@ -35,6 +35,10 @@ import {
   Mail,
   Briefcase,
   ImageIcon,
+  Brain,
+  ShieldAlert,
+  Volume2,
+  Gauge,
 } from "lucide-react";
 
 interface Props {
@@ -121,6 +125,32 @@ export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
   const priority = report.priority || "N/A";
   const category = report.category || "N/A";
   const description = report.description || "N/A";
+  
+  const aiAuditNote =
+    report.aiMeta?.auditNote || report.auditNote || "No AI audit note available.";
+
+  const aiConfidence =
+    report.aiMeta?.confidence !== undefined
+      ? `${Math.round(report.aiMeta.confidence * 100)}%`
+      : report.confidence !== undefined
+        ? `${Math.round(report.confidence * 100)}%`
+        : "N/A";
+
+  const needsReview =
+    report.aiMeta?.needs_review !== undefined
+      ? report.aiMeta.needs_review
+        ? "Yes"
+        : "No"
+      : report.needs_review !== undefined
+        ? report.needs_review
+          ? "Yes"
+          : "No"
+        : "N/A";
+
+  const assignmentStatus = report.assignmentStatus || "N/A";
+  const genuinenessScore =
+    report.genuinenessScore !== undefined ? `${report.genuinenessScore}/10` : "N/A";
+  const audioUrl = report.audioUrl || "";
 
   const isUncategorized =
     category?.toLowerCase?.().trim() === "uncategorized";
@@ -179,9 +209,6 @@ export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
               <DialogTitle className="text-xl">
                 {category !== "N/A" ? category : "Civic Report"}
                 </DialogTitle>
-                <DialogDescription className="mt-1">
-                  Report details, status, location, assignment, and verification proof.
-                  </DialogDescription>
             </div>
 
             <StatusBadge status={report.status} />
@@ -230,6 +257,16 @@ export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
               alt={report.category}
               className="w-full h-56 object-cover rounded-xl border"
             />
+            <section className="mt-4 rounded-xl border bg-blue-50/60 p-4">
+              <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                <Brain className="size-4 text-primary" />
+                AI Audit Note
+              </h4>
+
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {aiAuditNote}
+              </p>
+            </section>
           </div>
 
           <div className="space-y-3 text-sm">
@@ -239,6 +276,29 @@ export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
             <Row icon={<Tag className="size-4" />} label="Category" value={category} />
             <Row icon={<Flag className="size-4" />} label="Priority" value={priority} />
             <Row icon={<FileText className="size-4" />} label="Firestore Status" value={firestoreStatus} />
+            <Row
+              icon={<Radio className="size-4" />}
+              label="Assignment Status"
+              value={assignmentStatus}
+            />
+
+            <Row
+              icon={<Gauge className="size-4" />}
+              label="Genuineness Score"
+              value={genuinenessScore}
+            />
+
+            <Row
+              icon={<Brain className="size-4" />}
+              label="AI Confidence"
+              value={aiConfidence}
+            />
+
+            <Row
+              icon={<ShieldAlert className="size-4" />}
+              label="Needs Review"
+              value={needsReview}
+            />
 
             <Row
               icon={<MapPin className="size-4" />}
@@ -259,6 +319,13 @@ export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
               label={t("upvotes")}
               value={`${report.upvotes || 0}`}
             />
+            {audioUrl && (
+              <Row
+                icon={<Volume2 className="size-4" />}
+                label="Audio Evidence"
+                value="Available"
+              />
+            )}
           </div>
         </div>
 
@@ -272,6 +339,19 @@ export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
             {description}
           </p>
         </section>
+        {audioUrl && (
+          <section className="mt-5 rounded-xl border bg-secondary/30 p-4">
+            <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+              <Volume2 className="size-4 text-primary" />
+              Audio Evidence
+            </h4>
+
+            <audio controls className="w-full">
+              <source src={audioUrl} />
+              Your browser does not support the audio element.
+            </audio>
+          </section>
+        )}
 
         <section className="mt-5 rounded-xl border bg-secondary/40 p-4">
           <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
