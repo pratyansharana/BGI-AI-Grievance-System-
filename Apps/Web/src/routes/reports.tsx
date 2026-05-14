@@ -47,23 +47,60 @@ type PrioritySort = "desc" | "asc";
 
 type ReportItem = any;
 
-const STATUS_FILTERS: { label: string; value: StatusFilter }[] = [
-  { label: "All Status", value: "all" },
-  { label: "Unresolved", value: "pending" },
-  { label: "Assigned", value: "assigned" },
-  { label: "Resolved", value: "resolved" },
-  { label: "Rejected", value: "rejected" },
-  { label: "Manual Review Required", value: "manual_review_required" },
+const getStatusFilters = (
+  lang: string
+): { label: string; value: StatusFilter }[] => [
+  { label: lang === "hi" ? "सभी स्थिति" : "All Status", value: "all" },
+  { label: lang === "hi" ? "अनसुलझी" : "Unresolved", value: "pending" },
+  { label: lang === "hi" ? "सौंपी गई" : "Assigned", value: "assigned" },
+  { label: lang === "hi" ? "हल" : "Resolved", value: "resolved" },
+  { label: lang === "hi" ? "अस्वीकृत" : "Rejected", value: "rejected" },
+  {
+    label: lang === "hi" ? "मैनुअल समीक्षा आवश्यक" : "Manual Review Required",
+    value: "manual_review_required",
+  },
 ];
 
-const CATEGORY_FILTERS: { label: string; value: CategoryFilter }[] = [
-  { label: "All Categories", value: "all" },
-  { label: "Electricity", value: "Electricity" },
-  { label: "Water Supply", value: "Water Supply" },
-  { label: "Sanitation", value: "Sanitation" },
-  { label: "Roads", value: "Roads" },
-  { label: "Uncategorized", value: "Uncategorized" },
+const getCategoryFilters = (
+  lang: string
+): { label: string; value: CategoryFilter }[] => [
+  { label: lang === "hi" ? "सभी श्रेणियां" : "All Categories", value: "all" },
+  { label: lang === "hi" ? "बिजली" : "Electricity", value: "Electricity" },
+  {
+    label: lang === "hi" ? "जल आपूर्ति" : "Water Supply",
+    value: "Water Supply",
+  },
+  { label: lang === "hi" ? "स्वच्छता" : "Sanitation", value: "Sanitation" },
+  { label: lang === "hi" ? "सड़कें" : "Roads", value: "Roads" },
+  {
+    label: lang === "hi" ? "अवर्गीकृत" : "Uncategorized",
+    value: "Uncategorized",
+  },
 ];
+
+function getCategoryLabel(category: string, lang: string) {
+  if (lang !== "hi") return category;
+
+  if (category === "Electricity") return "बिजली";
+  if (category === "Water Supply") return "जल आपूर्ति";
+  if (category === "Sanitation") return "स्वच्छता";
+  if (category === "Roads") return "सड़कें";
+  if (category === "Uncategorized") return "अवर्गीकृत";
+
+  return category;
+}
+
+function getPriorityLabel(priority?: string, lang?: string) {
+  const p = priority?.toLowerCase().trim();
+
+  if (lang !== "hi") return priority || "N/A";
+
+  if (p === "high") return "उच्च";
+  if (p === "medium") return "मध्यम";
+  if (p === "low") return "निम्न";
+
+  return "N/A";
+}
 
 function normalizeStatus(status?: string): ReportStatus {
   const s = status?.toLowerCase().trim();
@@ -134,8 +171,11 @@ function ReportsRoute() {
 }
 
 function ReportsPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { reports: firestoreReports } = useReports();
+
+  const statusFilters = getStatusFilters(lang);
+  const categoryFilters = getCategoryFilters(lang);
 
   const [selectedReports, setSelectedReports] = useState<string[]>([]);
   const [list, setList] = useState<ReportItem[]>([]);
@@ -242,7 +282,9 @@ function ReportsPage() {
     }
 
     const confirmDelete = window.confirm(
-      `Delete ${idsToDelete.length} selected reports?`
+      lang === "hi"
+        ? `${idsToDelete.length} चुनी गई रिपोर्ट हटाएं?`
+        : `Delete ${idsToDelete.length} selected reports?`
     );
 
     if (!confirmDelete) return;
@@ -254,10 +296,16 @@ function ReportsPage() {
 
       setList((prev) => prev.filter((r) => !idsToDelete.includes(r.id)));
       setSelectedReports([]);
-      toast.success("Selected reports deleted");
+      toast.success(
+        lang === "hi" ? "चुनी गई रिपोर्ट हटाई गईं" : "Selected reports deleted"
+      );
     } catch (error) {
       console.error("Error deleting reports:", error);
-      toast.error("Failed to delete selected reports");
+      toast.error(
+        lang === "hi"
+          ? "चुनी गई रिपोर्ट हटाने में समस्या हुई"
+          : "Failed to delete selected reports"
+      );
     }
   };
 
@@ -270,7 +318,6 @@ function ReportsPage() {
         <h1 className="text-2xl font-bold mt-1">{t("allReports")}</h1>
       </header>
 
-
       <div className="inline-flex rounded-xl border bg-card p-1 shadow-sm mb-6">
         <button
           onClick={() => setViewMode("table")}
@@ -281,7 +328,7 @@ function ReportsPage() {
               : "text-muted-foreground hover:bg-muted"
           )}
         >
-          Table
+          {lang === "hi" ? "तालिका" : "Table"}
         </button>
 
         <button
@@ -293,7 +340,7 @@ function ReportsPage() {
               : "text-muted-foreground hover:bg-muted"
           )}
         >
-          Map
+          {lang === "hi" ? "मानचित्र" : "Map"}
         </button>
       </div>
 
@@ -302,230 +349,263 @@ function ReportsPage() {
           <MapView />
         </div>
       )}
+
       {viewMode === "table" && (
-      <div className="rounded-2xl bg-card border shadow-(--shadow-soft) overflow-hidden">
-        <div className="p-4 border-b bg-card">
-          <div className="flex flex-col gap-3">
-            <div className="grid gap-3 xl:grid-cols-[minmax(260px,1fr)_230px_250px_auto]">
-              <div className="relative">
-                <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <div className="rounded-2xl bg-card border shadow-(--shadow-soft) overflow-hidden">
+          <div className="p-4 border-b bg-card">
+            <div className="flex flex-col gap-3">
+              <div className="grid gap-3 xl:grid-cols-[minmax(260px,1fr)_230px_250px_auto]">
+                <div className="relative">
+                  <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
 
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search reports..."
-                  className="pl-9 h-11 rounded-xl"
-                />
-              </div>
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder={
+                      lang === "hi" ? "रिपोर्ट खोजें..." : "Search reports..."
+                    }
+                    className="pl-9 h-11 rounded-xl"
+                  />
+                </div>
 
-              <div className="relative">
-                <Filter className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <div className="relative">
+                  <Filter className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
 
-                <select
-                  value={statusFilter}
-                  onChange={(e) =>
-                    setStatusFilter(e.target.value as StatusFilter)
-                  }
-                  className="h-11 w-full appearance-none rounded-xl border bg-background pl-9 pr-4 text-sm font-medium outline-none transition focus:ring-2 focus:ring-primary"
-                >
-                  {STATUS_FILTERS.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) =>
+                      setStatusFilter(e.target.value as StatusFilter)
+                    }
+                    className="h-11 w-full appearance-none rounded-xl border bg-background pl-9 pr-4 text-sm font-medium outline-none transition focus:ring-2 focus:ring-primary"
+                  >
+                    {statusFilters.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="relative">
-                <Tag className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <div className="relative">
+                  <Tag className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
 
-                <select
-                  value={categoryFilter}
-                  onChange={(e) =>
-                    setCategoryFilter(e.target.value as CategoryFilter)
-                  }
-                  className="h-11 w-full appearance-none rounded-xl border bg-background pl-9 pr-4 text-sm font-medium outline-none transition focus:ring-2 focus:ring-primary"
-                >
-                  {CATEGORY_FILTERS.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) =>
+                      setCategoryFilter(e.target.value as CategoryFilter)
+                    }
+                    className="h-11 w-full appearance-none rounded-xl border bg-background pl-9 pr-4 text-sm font-medium outline-none transition focus:ring-2 focus:ring-primary"
+                  >
+                    {categoryFilters.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  onClick={() =>
-                    setPrioritySort((prev) =>
-                      prev === "desc" ? "asc" : "desc"
-                    )
-                  }
-                  className="h-11 w-11 shrink-0 rounded-xl border bg-background flex items-center justify-center transition hover:bg-secondary/50"
-                  title={
-                    prioritySort === "desc"
-                      ? "Priority: High to Low"
-                      : "Priority: Low to High"
-                  }
-                >
-                  {prioritySort === "desc" ? (
-                    <ArrowDownWideNarrow className="size-4" />
-                  ) : (
-                    <ArrowUpNarrowWide className="size-4" />
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    onClick={() =>
+                      setPrioritySort((prev) =>
+                        prev === "desc" ? "asc" : "desc"
+                      )
+                    }
+                    className="h-11 w-11 shrink-0 rounded-xl border bg-background flex items-center justify-center transition hover:bg-secondary/50"
+                    title={
+                      prioritySort === "desc"
+                        ? lang === "hi"
+                          ? "प्राथमिकता: उच्च से निम्न"
+                          : "Priority: High to Low"
+                        : lang === "hi"
+                          ? "प्राथमिकता: निम्न से उच्च"
+                          : "Priority: Low to High"
+                    }
+                  >
+                    {prioritySort === "desc" ? (
+                      <ArrowDownWideNarrow className="size-4" />
+                    ) : (
+                      <ArrowUpNarrowWide className="size-4" />
+                    )}
+                  </button>
+
+                  <button
+                    onClick={toggleSelectAll}
+                    disabled={filtered.length === 0}
+                    className="h-11 whitespace-nowrap rounded-xl bg-secondary px-4 text-sm font-medium text-secondary-foreground transition hover:bg-secondary/70 disabled:opacity-50"
+                  >
+                    {selectedVisibleCount === filtered.length &&
+                    filtered.length > 0
+                      ? lang === "hi"
+                        ? "सभी हटाएं"
+                        : "Unselect All"
+                      : lang === "hi"
+                        ? "सभी चुनें"
+                        : "Select All"}
+                  </button>
+
+                  {selectedReports.length > 0 && (
+                    <button
+                      onClick={deleteSelectedReports}
+                      className="h-11 whitespace-nowrap rounded-xl bg-red-600 px-4 text-sm font-medium text-white transition hover:bg-red-700"
+                    >
+                      {lang === "hi"
+                        ? `हटाएं (${selectedReports.length})`
+                        : `Delete (${selectedReports.length})`}
+                    </button>
                   )}
-                </button>
+                </div>
+              </div>
 
-                <button
-                  onClick={toggleSelectAll}
-                  disabled={filtered.length === 0}
-                  className="h-11 whitespace-nowrap rounded-xl bg-secondary px-4 text-sm font-medium text-secondary-foreground transition hover:bg-secondary/70 disabled:opacity-50"
-                >
-                  {selectedVisibleCount === filtered.length &&
-                  filtered.length > 0
-                    ? "Unselect All"
-                    : "Select All"}
-                </button>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="inline-flex h-9 items-center rounded-full bg-secondary px-4 text-muted-foreground">
+                  {lang === "hi"
+                    ? `${list.length} में से ${filtered.length} रिपोर्ट`
+                    : `Showing ${filtered.length} of ${list.length} reports`}
+                </span>
+
+                {statusFilter !== "all" && (
+                  <span className="inline-flex h-9 items-center rounded-full bg-primary/10 px-4 text-primary">
+                    {lang === "hi" ? "स्थिति:" : "Status:"}{" "}
+                    {
+                      statusFilters.find((item) => item.value === statusFilter)
+                        ?.label
+                    }
+                  </span>
+                )}
+
+                {categoryFilter !== "all" && (
+                  <span className="inline-flex h-9 items-center rounded-full bg-primary/10 px-4 text-primary">
+                    {lang === "hi" ? "श्रेणी:" : "Category:"}{" "}
+                    {getCategoryLabel(categoryFilter, lang)}
+                  </span>
+                )}
+
+                <span className="inline-flex h-9 items-center rounded-full bg-secondary px-4 text-muted-foreground">
+                  {lang === "hi" ? "प्राथमिकता:" : "Priority:"}{" "}
+                  {prioritySort === "desc"
+                    ? lang === "hi"
+                      ? "उच्च से निम्न"
+                      : "High to Low"
+                    : lang === "hi"
+                      ? "निम्न से उच्च"
+                      : "Low to High"}
+                </span>
 
                 {selectedReports.length > 0 && (
-                  <button
-                    onClick={deleteSelectedReports}
-                    className="h-11 whitespace-nowrap rounded-xl bg-red-600 px-4 text-sm font-medium text-white transition hover:bg-red-700"
-                  >
-                    Delete ({selectedReports.length})
-                  </button>
+                  <span className="inline-flex h-9 items-center rounded-full bg-red-50 px-4 text-red-600">
+                    {lang === "hi"
+                      ? `चयनित: ${selectedReports.length}`
+                      : `Selected: ${selectedReports.length}`}
+                  </span>
                 )}
               </div>
             </div>
+          </div>
 
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="inline-flex h-9 items-center rounded-full bg-secondary px-4 text-muted-foreground">
-                Showing {filtered.length} of {list.length} reports
-              </span>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="text-left px-5 py-3">
+                    {lang === "hi" ? "चयन" : "Select"}
+                  </th>
+                  <th className="text-left px-5 py-3">ID</th>
+                  <th className="text-left px-5 py-3">{t("user")}</th>
+                  <th className="text-left px-5 py-3">{t("image")}</th>
+                  <th className="text-left px-5 py-3">{t("location")}</th>
+                  <th className="text-left px-5 py-3">
+                    {lang === "hi" ? "श्रेणी" : "Category"}
+                  </th>
+                  <th className="text-left px-5 py-3">{t("status")}</th>
+                  <th className="text-left px-5 py-3">
+                    {lang === "hi" ? "प्राथमिकता" : "Priority"}
+                  </th>
+                  <th className="text-left px-5 py-3">{t("dateTime")}</th>
+                </tr>
+              </thead>
 
-              {statusFilter !== "all" && (
-                <span className="inline-flex h-9 items-center rounded-full bg-primary/10 px-4 text-primary">
-                  Status:{" "}
-                  {
-                    STATUS_FILTERS.find((item) => item.value === statusFilter)
-                      ?.label
-                  }
-                </span>
-              )}
+              <tbody>
+                {filtered.map((r, i) => (
+                  <tr
+                    key={r.id}
+                    onClick={() => setActive(r)}
+                    className={cn(
+                      "border-t hover:bg-secondary/30 transition cursor-pointer",
+                      i % 2 && "bg-secondary/10"
+                    )}
+                  >
+                    <td className="px-5 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedReports.includes(r.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={() => toggleSelect(r.id)}
+                        className="h-4 w-4 cursor-pointer"
+                      />
+                    </td>
 
-              {categoryFilter !== "all" && (
-                <span className="inline-flex h-9 items-center rounded-full bg-primary/10 px-4 text-primary">
-                  Category: {categoryFilter}
-                </span>
-              )}
+                    <td className="px-5 py-3 font-mono text-xs font-semibold">
+                      {r.id}
+                    </td>
 
-              <span className="inline-flex h-9 items-center rounded-full bg-secondary px-4 text-muted-foreground">
-                Priority: {prioritySort === "desc" ? "High to Low" : "Low to High"}
-              </span>
+                    <td className="px-5 py-3">{r.citizenName || r.userId}</td>
 
-              {selectedReports.length > 0 && (
-                <span className="inline-flex h-9 items-center rounded-full bg-red-50 px-4 text-red-600">
-                  Selected: {selectedReports.length}
-                </span>
-              )}
-            </div>
+                    <td className="px-5 py-3">
+                      <img
+                        src={r.image}
+                        alt=""
+                        className="size-12 rounded-lg object-cover"
+                      />
+                    </td>
+
+                    <td className="px-5 py-3 font-mono text-xs">
+                      {r.lat}, {r.lng}
+                    </td>
+
+                    <td className="px-5 py-3">
+                      <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">
+                        {getCategoryLabel(r.normalizedCategory, lang)}
+                      </span>
+                    </td>
+
+                    <td className="px-5 py-3">
+                      <StatusBadge status={r.status} />
+                    </td>
+
+                    <td className="px-5 py-3">
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset",
+                          getPriorityStyle(r.priority)
+                        )}
+                      >
+                        {getPriorityLabel(r.priority, lang)}
+                      </span>
+                    </td>
+
+                    <td className="px-5 py-3 text-muted-foreground text-xs">
+                      {new Date(r.createdAt).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+
+                {filtered.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={9}
+                      className="text-center py-12 text-muted-foreground text-sm"
+                    >
+                      {lang === "hi"
+                        ? "इन फिल्टर से कोई रिपोर्ट नहीं मिली।"
+                        : "No reports match your filters."}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <th className="text-left px-5 py-3">Select</th>
-                <th className="text-left px-5 py-3">ID</th>
-                <th className="text-left px-5 py-3">{t("user")}</th>
-                <th className="text-left px-5 py-3">{t("image")}</th>
-                <th className="text-left px-5 py-3">{t("location")}</th>
-                <th className="text-left px-5 py-3">Category</th>
-                <th className="text-left px-5 py-3">{t("status")}</th>
-                <th className="text-left px-5 py-3">Priority</th>
-                <th className="text-left px-5 py-3">{t("dateTime")}</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {filtered.map((r, i) => (
-                <tr
-                  key={r.id}
-                  onClick={() => setActive(r)}
-                  className={cn(
-                    "border-t hover:bg-secondary/30 transition cursor-pointer",
-                    i % 2 && "bg-secondary/10"
-                  )}
-                >
-                  <td className="px-5 py-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedReports.includes(r.id)}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={() => toggleSelect(r.id)}
-                      className="h-4 w-4 cursor-pointer"
-                    />
-                  </td>
-
-                  <td className="px-5 py-3 font-mono text-xs font-semibold">
-                    {r.id}
-                  </td>
-
-                  <td className="px-5 py-3">{r.citizenName || r.userId}</td>
-
-                  <td className="px-5 py-3">
-                    <img
-                      src={r.image}
-                      alt=""
-                      className="size-12 rounded-lg object-cover"
-                    />
-                  </td>
-
-                  <td className="px-5 py-3 font-mono text-xs">
-                    {r.lat}, {r.lng}
-                  </td>
-
-                  <td className="px-5 py-3">
-                    <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">
-                      {r.normalizedCategory}
-                    </span>
-                  </td>
-
-                  <td className="px-5 py-3">
-                    <StatusBadge status={r.status} />
-                  </td>
-
-                  <td className="px-5 py-3">
-                    <span
-                      className={cn(
-                        "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset",
-                        getPriorityStyle(r.priority)
-                      )}
-                    >
-                      {r.priority || "N/A"}
-                    </span>
-                  </td>
-
-                  <td className="px-5 py-3 text-muted-foreground text-xs">
-                    {new Date(r.createdAt).toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-
-              {filtered.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={9}
-                    className="text-center py-12 text-muted-foreground text-sm"
-                  >
-                    No reports match your filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
       )}
 
       <ReportDetailDialog

@@ -165,7 +165,7 @@ function DashboardPage() {
     },
     {
       key: "pending" as const,
-      label: "Unresolved",
+      label: lang === "hi" ? "अनसुलझी" : "Unresolved",
       val: counts.pending,
       icon: Clock,
       tone: "var(--color-status-pending)",
@@ -289,9 +289,13 @@ function DashboardPage() {
                 <th className="text-left px-5 py-3">{t("user")}</th>
                 <th className="text-left px-5 py-3">{t("image")}</th>
                 <th className="text-left px-5 py-3">{t("location")}</th>
-                <th className="text-left px-5 py-3">Category</th>
+                <th className="text-left px-5 py-3">
+                  {lang === "hi" ? "श्रेणी" : "Category"}
+                  </th>
                 <th className="text-left px-5 py-3">{t("status")}</th>
-                <th className="text-left px-5 py-3">Priority</th>
+                <th className="text-left px-5 py-3">
+                  {lang === "hi" ? "प्राथमिकता" : "Priority"}
+                  </th>
                 <th className="text-left px-5 py-3">{t("dateTime")}</th>
               </tr>
             </thead>
