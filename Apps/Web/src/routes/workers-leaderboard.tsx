@@ -29,7 +29,7 @@ function WorkersLeaderboardRoute() {
   if (!isAuthed) return <Navigate to="/login" />;
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-[linear-gradient(180deg,rgba(255,153,51,0.08)_0%,rgba(255,255,255,0.96)_48%,rgba(19,136,8,0.08)_100%)]">
       <AppSidebar />
 
       <main className="flex-1 h-screen overflow-y-auto overflow-x-hidden p-6 lg:p-8">
