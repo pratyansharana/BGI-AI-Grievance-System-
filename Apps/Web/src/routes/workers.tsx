@@ -300,26 +300,26 @@ function WorkersPage() {
         </div>
 
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl border bg-card p-5 shadow-sm">
+          <div className="rounded-2xl border bg-card p-5 shadow-sm transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
             <p className="text-sm text-muted-foreground">Total Field Staff</p>
             <p className="mt-2 text-3xl font-bold">{workers.length}</p>
           </div>
 
-          <div className="rounded-2xl border bg-card p-5 shadow-sm">
+          <div className="rounded-2xl border bg-card p-5 shadow-sm transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
             <p className="text-sm text-muted-foreground">Available</p>
             <p className="mt-2 text-3xl font-bold text-green-600">
               {availableCount}
             </p>
           </div>
 
-          <div className="rounded-2xl border bg-card p-5 shadow-sm">
+          <div className="rounded-2xl border bg-card p-5 shadow-sm transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
             <p className="text-sm text-muted-foreground">Assigned</p>
             <p className="mt-2 text-3xl font-bold text-blue-600">
               {assignedCount}
             </p>
           </div>
 
-          <div className="rounded-2xl border bg-card p-5 shadow-sm">
+          <div className="rounded-2xl border bg-card p-5 shadow-sm transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
             <p className="text-sm text-muted-foreground">Off Duty</p>
             <p className="mt-2 text-3xl font-bold text-red-600">
               {offDutyCount}
