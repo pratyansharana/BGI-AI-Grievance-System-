@@ -125,6 +125,7 @@ export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
   const priority = report.priority || "N/A";
   const category = report.category || "N/A";
   const description = report.description || "N/A";
+  
   const aiAuditNote =
     report.aiMeta?.auditNote || report.auditNote || "No AI audit note available.";
 
@@ -368,6 +369,19 @@ export function ReportDetailDialog({ report, onClose, onDelete }: Props) {
             {description}
           </p>
         </section>
+        {audioUrl && (
+          <section className="mt-5 rounded-xl border bg-secondary/30 p-4">
+            <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+              <Volume2 className="size-4 text-primary" />
+              Audio Evidence
+            </h4>
+
+            <audio controls className="w-full">
+              <source src={audioUrl} />
+              Your browser does not support the audio element.
+            </audio>
+          </section>
+        )}
 
         <section className="mt-5 rounded-xl border bg-secondary/40 p-4">
           <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
