@@ -1,5 +1,12 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, FileText, Users, LogOut, Languages, ShieldCheck } from "lucide-react";
+import {
+  LayoutDashboard,
+  FileText,
+  Users,
+  LogOut,
+  Languages,
+  Trophy,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -11,6 +18,9 @@ export function AppSidebar() {
   const { logout, email } = useAuth();
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
+
+  const isWorkersSection =
+    path === "/workers" || path === "/workers-leaderboard";
 
   const items = [
     { to: "/", label: t("dashboard"), icon: LayoutDashboard, exact: true },
@@ -26,11 +36,7 @@ export function AppSidebar() {
       <div className="px-5 py-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
           <div className="size-10 rounded-xl bg-white flex items-center justify-center shadow-(--shadow-elev) overflow-hidden p-1">
-            <img
-              src={logo}
-              alt="LokAwaaz Logo"
-              className="h-full w-full object-contain"
-            />
+            <img src={logo} alt="LokAwaaz Logo" className="h-full w-full object-contain" />
           </div>
           <div>
             <p className="font-bold leading-tight">{t("appName")}</p>
@@ -41,21 +47,43 @@ export function AppSidebar() {
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {items.map((it) => {
-          const active = isActive(it.to, it.exact);
+          const active =
+            it.to === "/workers"
+              ? isWorkersSection
+              : isActive(it.to, it.exact);
+
           return (
-            <Link
-              key={it.to}
-              to={it.to}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition",
-                active
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-(--shadow-soft)"
-                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+            <div key={it.to}>
+              <Link
+                to={it.to}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition",
+                  active
+                    ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-(--shadow-soft)"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                )}
+              >
+                <it.icon className="size-4" />
+                {it.label}
+              </Link>
+
+              {it.to === "/workers" && isWorkersSection && (
+                <div className="ml-7 mt-1 space-y-1 border-l border-sidebar-border pl-3">
+                  <Link
+                    to="/workers-leaderboard"
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition",
+                      path === "/workers-leaderboard"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    )}
+                  >
+                    <Trophy className="size-3.5" />
+                    Worker Leaderboard
+                  </Link>
+                </div>
               )}
-            >
-              <it.icon className="size-4" />
-              {it.label}
-            </Link>
+            </div>
           );
         })}
       </nav>
@@ -71,7 +99,7 @@ export function AppSidebar() {
                 "flex-1 text-xs font-medium px-2 py-1.5 rounded-md transition",
                 lang === l
                   ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground",
+                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground"
               )}
             >
               {l === "en" ? "EN" : "हिं"}

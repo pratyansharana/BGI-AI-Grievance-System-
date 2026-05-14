@@ -9,11 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WorkersLeaderboardRouteImport } from './routes/workers-leaderboard'
 import { Route as WorkersRouteImport } from './routes/workers'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 
+const WorkersLeaderboardRoute = WorkersLeaderboardRouteImport.update({
+  id: '/workers-leaderboard',
+  path: '/workers-leaderboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WorkersRoute = WorkersRouteImport.update({
   id: '/workers',
   path: '/workers',
@@ -40,12 +46,14 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/reports': typeof ReportsRoute
   '/workers': typeof WorkersRoute
+  '/workers-leaderboard': typeof WorkersLeaderboardRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/reports': typeof ReportsRoute
   '/workers': typeof WorkersRoute
+  '/workers-leaderboard': typeof WorkersLeaderboardRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,20 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/reports': typeof ReportsRoute
   '/workers': typeof WorkersRoute
+  '/workers-leaderboard': typeof WorkersLeaderboardRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/reports' | '/workers'
+  fullPaths: '/' | '/login' | '/reports' | '/workers' | '/workers-leaderboard'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/reports' | '/workers'
-  id: '__root__' | '/' | '/login' | '/reports' | '/workers'
+  to: '/' | '/login' | '/reports' | '/workers' | '/workers-leaderboard'
+  id:
+    | '__root__'
+    | '/'
+    | '/login'
+    | '/reports'
+    | '/workers'
+    | '/workers-leaderboard'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,10 +82,18 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ReportsRoute: typeof ReportsRoute
   WorkersRoute: typeof WorkersRoute
+  WorkersLeaderboardRoute: typeof WorkersLeaderboardRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/workers-leaderboard': {
+      id: '/workers-leaderboard'
+      path: '/workers-leaderboard'
+      fullPath: '/workers-leaderboard'
+      preLoaderRoute: typeof WorkersLeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/workers': {
       id: '/workers'
       path: '/workers'
@@ -107,6 +130,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ReportsRoute: ReportsRoute,
   WorkersRoute: WorkersRoute,
+  WorkersLeaderboardRoute: WorkersLeaderboardRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
