@@ -375,13 +375,8 @@ function WorkersPage() {
           </button>
         </div>
 
-<<<<<<< HEAD
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-2xl border bg-card p-5 shadow-sm transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
-=======
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <div className="rounded-2xl border bg-card p-5 shadow-sm">
->>>>>>> 93bb1b54987da65bc484ae1f08262ad4e514c7b6
             <p className="text-sm text-muted-foreground">Total Field Staff</p>
             <p className="mt-2 text-3xl font-bold">{approvedWorkers.length}</p>
           </div>
